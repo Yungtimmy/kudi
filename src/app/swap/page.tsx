@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from "wagmi";
 import { BtcMark, CoinsArt } from "@/components/Illustrations";
@@ -12,6 +12,20 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { erc20Abi, routerAbi } from "@/lib/abi";
 import { btcToMusdRoute, CONTRACTS, MEZO_TESTNET, txUrl } from "@/lib/mezo";
 import { formatBtc, formatMusd, formatNaira, musdToNaira, parseAmount, txMessage, WAD } from "@/lib/format";
+
+const QUOTE_JUST_NOW_SECONDS = 10;
+
+function useQuoteAge(updatedAt: number) {
+  const { t } = useI18n();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  if (!updatedAt) return "";
+  const seconds = Math.max(0, Math.floor((now - updatedAt) / 1000));
+  return seconds < QUOTE_JUST_NOW_SECONDS ? t("swap.quotedNow") : t("swap.quotedAgo", { seconds });
+}
 
 export default function SwapPage() {
   const { t } = useI18n();
@@ -46,6 +60,7 @@ export default function SwapPage() {
   });
 
   const out = quote.data?.[1];
+  const quoteAge = useQuoteAge(out != null ? quote.dataUpdatedAt : 0);
   const perBtc = amount && amount > 0n && out != null ? (out * WAD) / amount : null;
   const naira = !fx.loading && out != null ? formatNaira(musdToNaira(out, fx.ngnPerUsd)) : null;
   const needsApproval = amount != null && amount > 0n && (allowance.data ?? 0n) < amount;
@@ -137,7 +152,8 @@ export default function SwapPage() {
         </div>
         <div className="quote-box">
           <div>{perBtc != null ? t("swap.rate", { amount: formatMusd(perBtc, 0) }) : t("swap.quoting")}</div>
-          <RateLine />
+          {quoteAge ? <div className="quote-fresh">{quoteAge}</div> : null}
+          <RateLine stamp="naira" />
         </div>
       </section>
 
@@ -171,7 +187,7 @@ export default function SwapPage() {
         rows={[
           { label: t("swap.from"), value: amount && amount > 0n ? `${formatBtc(amount)} BTC` : "—" },
           { label: t("swap.to"), value: out != null ? `${formatMusd(out)} MUSD${naira ? ` · ${naira}` : ""}` : "—" },
-          { label: t("swap.rateLabel"), value: perBtc != null ? t("swap.rate", { amount: formatMusd(perBtc, 0) }) : "—" },
+          { label: t("swap.rateLabel"), value: perBtc != null ? `${t("swap.rate", { amount: formatMusd(perBtc, 0) })}${quoteAge ? ` · ${quoteAge}` : ""}` : "—" },
         ]}
       />
     </main>
