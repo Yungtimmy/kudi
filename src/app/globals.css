@@ -244,9 +244,36 @@ a { color: var(--kola-green); }
 .badge.danger { background: #fde2e0; color: var(--pepper-red); }
 .badge svg { width: 16px; height: 16px; }
 
+.viewbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--lagos-indigo);
+  color: var(--white);
+  border-radius: 14px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+}
+.viewbar a {
+  flex: none;
+  color: var(--lagos-indigo);
+  background: var(--palm);
+  text-decoration: none;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
 .actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
-.actions a {
+.actions a, .actions button {
   background: var(--white);
+  border: 0;
   border-radius: 18px;
   box-shadow: var(--shadow-card);
   text-decoration: none;
@@ -261,6 +288,7 @@ a { color: var(--kola-green); }
   align-items: center;
   gap: 8px;
 }
+.actions button:disabled { opacity: 0.45; cursor: not-allowed; }
 .actions .ico {
   width: 48px; height: 48px; border-radius: 16px;
   background: #f4fbf6; color: var(--kola-green);

@@ -1,6 +1,6 @@
 // Mezo testnet constants (Wave 1 build spec).
 // Addresses match @mezo-org/musd-contracts@1.1.0 matsnet artifacts, except BTC and the pool router.
-import type { Address } from "viem";
+import { getAddress, isAddress, type Address } from "viem";
 
 export const MEZO_TESTNET = {
   chainId: 31611,
@@ -53,3 +53,17 @@ export const shortAddr = (a: string) => {
   if (!a || a.length < 12) return a;
   return `${a.slice(0, 6)}...${a.slice(-4)}`;
 };
+
+/** Short form for the read-only bar: 0x10c8…D12f */
+export const viewAddr = (a: string) => {
+  if (!a || a.length < 12) return a;
+  return `${a.slice(0, 6)}…${a.slice(-4)}`;
+};
+
+/** `?address=` on home. Missing means the normal wallet home. */
+export function parseViewAddress(raw: string | null): { address?: Address; invalid: boolean } {
+  if (raw == null) return { invalid: false };
+  const value = raw.trim();
+  if (!isAddress(value)) return { invalid: true };
+  return { address: getAddress(value), invalid: false };
+}
