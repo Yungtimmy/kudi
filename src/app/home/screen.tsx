@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { ActivityCard } from "@/components/ActivityCard";
 import { RateLine } from "@/components/RateLine";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { BottomWave, BtcMark, LinkIcon, PlantArt, SendIcon, ShieldIcon, SwapIcon, WalletIcon } from "@/components/Illustrations";
@@ -9,7 +10,7 @@ import { useFx } from "@/hooks/useFx";
 import { usePosition } from "@/hooks/useMezo";
 import { useI18n } from "@/i18n/I18nProvider";
 import { loanHealth } from "@/lib/health";
-import { btcToNaira, formatBtc, formatMusd, formatNaira, formatUsd, musdToNaira } from "@/lib/format";
+import { btcToNaira, formatBtc, formatMusd, formatNaira, formatUsd, musdToNaira, WAD } from "@/lib/format";
 import { liquidationPrice } from "@/lib/loan";
 import { parseViewAddress, viewAddr } from "@/lib/mezo";
 
@@ -30,6 +31,7 @@ export function HomeScreen() {
   const musdNaira = !fx.loading && musd != null ? formatNaira(musdToNaira(musd, fx.ngnPerUsd)) : null;
   const btcNaira = !fx.loading && btc != null && protocol.price ? formatNaira(btcToNaira(btc, protocol.price, fx.ngnPerUsd)) : null;
   const liqNaira = !fx.loading && liq != null ? formatNaira(musdToNaira(liq, fx.ngnPerUsd)) : null;
+  const priceNaira = !fx.loading && protocol.price ? formatNaira(btcToNaira(WAD, protocol.price, fx.ngnPerUsd)) : null;
   const show = Boolean(address) && !view.invalid;
 
   if (view.invalid) {
@@ -49,7 +51,7 @@ export function HomeScreen() {
   }
 
   return (
-    <main className="screen">
+    <main className="screen home-dash">
       {watching && address ? (
         <div className="viewbar" role="status">
           <span>{t("home.viewing", { address: viewAddr(address) })}</span>
@@ -107,8 +109,19 @@ export function HomeScreen() {
         )}
       </section>
 
-      <h3 style={{ margin: "16px 0 8px" }}>{t("home.actions")}</h3>
-      <nav className="actions" aria-label={t("home.actions")}>
+      <section className="card price-card wide-only">
+        <div className="label">{t("home.btcPrice")}</div>
+        <div className="amount" style={{ fontSize: 28, marginTop: 8 }}>
+          {protocol.price ? formatUsd(protocol.price) : protocol.priceError ? "—" : "…"}
+        </div>
+        <div className="naira" style={{ color: "var(--kola-green)" }}>{priceNaira ? `(~ ${priceNaira})` : ""}</div>
+        <div style={{ marginTop: 8 }}><RateLine /></div>
+      </section>
+
+      <ActivityCard address={show ? address : undefined} />
+
+      <h3 className="mobile-only" style={{ margin: "16px 0 8px" }}>{t("home.actions")}</h3>
+      <nav className="actions mobile-only" aria-label={t("home.actions")}>
         {actions.map((item) =>
           watching ? (
             <button key={item.href} type="button" disabled aria-describedby="readonly-actions">
@@ -123,7 +136,7 @@ export function HomeScreen() {
           ),
         )}
       </nav>
-      {watching ? <p id="readonly-actions" className="note" style={{ marginTop: 10 }}>{t("home.readonlyActions")}</p> : null}
+      {watching ? <p id="readonly-actions" className="note readonly-note" style={{ marginTop: 10 }}>{t("home.readonlyActions")}</p> : null}
       {protocol.priceError ? <p className="error" style={{ marginTop: 12 }}>{t("common.loading")}</p> : null}
       <BottomWave />
     </main>

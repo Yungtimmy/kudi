@@ -570,7 +570,24 @@ a { color: var(--kola-green); }
 .foot .mezo { color: var(--suya-orange); font-weight: 800; letter-spacing: 0.04em; font-size: 11px; }
 .empty { color: rgba(35, 36, 107, 0.8); }
 
-.topnav, .sidebar { display: none; }
+.topnav, .sidebar, .wide-only { display: none; }
+
+.activity-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.activity-list a {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  text-decoration: none;
+  color: var(--lagos-indigo);
+  background: #f7fbf6;
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+.activity-list strong { display: block; font-size: 15px; }
+.activity-dir { font-size: 13px; font-weight: 700; }
+.activity-dir.in { color: var(--kola-green); }
+.activity-dir.out { color: var(--suya-orange); }
 
 @media (min-width: 768px) {
   .app {
@@ -612,6 +629,21 @@ a { color: var(--kola-green); }
   .wave { display: none; }
   .screen.stage { max-width: 640px; margin-left: auto; margin-right: auto; }
   .screen.landing { max-width: 760px; }
+  .mobile-only { display: none !important; }
+  .wide-only { display: block; }
+  .home-dash {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: stretch;
+    max-width: none;
+  }
+  .home-dash .viewbar,
+  .home-dash .recovery,
+  .home-dash .activity-card,
+  .home-dash .readonly-note { grid-column: 1 / -1; }
+  .home-dash .hero-balance,
+  .home-dash .card { margin-bottom: 0; }
 }
 
 @media (min-width: 1024px) {
@@ -691,4 +723,9 @@ a { color: var(--kola-green); }
   .screen.landing { max-width: 880px; }
   .landing .hero { min-height: 480px; }
   .landing .hero h1 { max-width: 380px; font-size: 40px; line-height: 46px; }
+  .home-dash { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) minmax(220px, 0.8fr); }
+  .home-dash .hero-balance { grid-column: 1 / span 2; }
+  .home-dash .btc-row { grid-column: 3; }
+  .home-dash .loan-card { grid-column: 1 / span 2; }
+  .home-dash .price-card { grid-column: 3; }
 }
