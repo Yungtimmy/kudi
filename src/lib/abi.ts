@@ -28,6 +28,8 @@ export const borrowerOpsAbi = parseAbi([
   "function getBorrowingFee(uint256 _debt) view returns (uint256)",
   "function openTrove(uint256 _debtAmount, address _upperHint, address _lowerHint) payable",
   "function adjustTrove(uint256 _collWithdrawal, uint256 _debtChange, bool _isDebtIncrease, address _upperHint, address _lowerHint) payable",
+  "function addColl(address _upperHint, address _lowerHint) payable",
+  "function repayMUSD(uint256 _amount, address _upperHint, address _lowerHint)",
 ]);
 
 export const hintHelpersAbi = parseAbi([

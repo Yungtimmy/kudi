@@ -35,7 +35,7 @@ for (const [key, file] of Object.entries(linked)) {
 const needed = {
   PriceFeed: ["fetchPrice"],
   TroveManager: ["MCR", "CCR", "MUSD_GAS_COMPENSATION", "getTroveColl", "getTroveDebt", "getTroveStatus", "getCurrentICR", "getTCR", "checkRecoveryMode", "getTroveInterestRate"],
-  BorrowerOperations: ["minNetDebt", "borrowingRate", "getBorrowingFee", "openTrove", "adjustTrove"],
+  BorrowerOperations: ["minNetDebt", "borrowingRate", "getBorrowingFee", "openTrove", "adjustTrove", "addColl", "repayMUSD"],
   HintHelpers: ["getApproxHint"],
   SortedTroves: ["findInsertPosition"],
   InterestRateManager: ["interestRate"],
