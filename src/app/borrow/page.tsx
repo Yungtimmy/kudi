@@ -28,8 +28,19 @@ import {
 import { loanHealth } from "@/lib/health";
 import { findTroveHints } from "@/lib/hints";
 import { borrowingFee, liquidationPrice, maxDraw, previewDebt, previewRatioPct } from "@/lib/loan";
+import { GuidedLoan } from "./guided";
 
 export default function BorrowPage() {
+  const { t } = useI18n();
+  const pos = usePosition();
+  if (pos.isConnected && pos.loading && pos.coll == null) {
+    return <main className="screen form-page"><p className="note">{t("common.loading")}</p></main>;
+  }
+  if (pos.coll == null) return <GuidedLoan />;
+  return <AdjustLoan />;
+}
+
+function AdjustLoan() {
   const { t } = useI18n();
   const fx = useFx();
   const { address, isConnected, btc, coll, debt, protocol, refetch } = usePosition();

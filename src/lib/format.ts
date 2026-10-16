@@ -59,6 +59,14 @@ export function btcToNaira(btcWad: bigint, priceWad: bigint, ngnPerUsd: number):
   return musdToNaira((btcWad * priceWad) / WAD, ngnPerUsd);
 }
 
+/** Whole naira to MUSD wad. Inverse of musdToNaira at the same rounded rate. */
+export function nairaToMusd(naira: bigint, ngnPerUsd: number): bigint {
+  if (!(ngnPerUsd > 0)) return 0n;
+  const rate = BigInt(Math.round(ngnPerUsd * 1000));
+  if (rate <= 0n) return 0n;
+  return (naira * WAD * 1000n) / rate;
+}
+
 export function parseAmount(input: string): bigint | null {
   const s = input.trim();
   if (!s) return 0n;

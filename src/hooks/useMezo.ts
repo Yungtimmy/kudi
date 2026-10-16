@@ -90,7 +90,10 @@ export function usePosition(watch?: Address) {
   const btc = useBalance({
     address,
     chainId,
-    query: { enabled: Boolean(address), refetchInterval: 20_000 },
+    query: {
+      enabled: Boolean(address),
+      refetchInterval: (query) => (query.state.data?.value === 0n ? 8_000 : 20_000),
+    },
   });
   const musd = useReadContract({
     address: CONTRACTS.MUSD,

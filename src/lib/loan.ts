@@ -22,6 +22,17 @@ export function previewDebt(opts: {
   return opts.currentDebt + opts.amount + fee + (opts.opening ? opts.gas : 0n);
 }
 
+/** Safe opening target. 200% sits above the 150% Safe line. */
+export const SAFE_ICR_PCT = 200;
+export const GUIDE_MAX_ICR_PCT = 300;
+
+/** BTC (18 decimals) that places `debt` at `ratioPct` for this BTC price. */
+export function collateralForRatio(debt: bigint, price: bigint, ratioPct: number): bigint | null {
+  if (debt <= 0n || price <= 0n || !(ratioPct > 0)) return null;
+  const ratioWad = BigInt(Math.round(ratioPct * 100)) * (WAD / 10000n);
+  return (debt * ratioWad) / price;
+}
+
 /** Individual collateral ratio, in percent (150 = 150%). */
 export function previewRatioPct(coll: bigint, price: bigint, debt: bigint): number | null {
   if (coll <= 0n || debt <= 0n || price <= 0n) return null;
