@@ -1,15 +1,15 @@
 "use client";
 
 import { useI18n } from "@/i18n/I18nProvider";
-import { formatHm, formatNaira } from "@/lib/format";
+import { formatHm, formatHmLagos, formatNaira } from "@/lib/format";
 import { useFx } from "@/hooks/useFx";
 import { BoltIcon, ClockIcon } from "./Illustrations";
 
-export function RateLine({ tone = "plain" }: { tone?: "plain" | "on-green" | "pill" }) {
+export function RateLine({ tone = "plain", stamp = "asOf" }: { tone?: "plain" | "on-green" | "pill"; stamp?: "asOf" | "naira" }) {
   const { t } = useI18n();
   const fx = useFx();
-  const time = fx.loading ? "--:--" : formatHm(fx.asOf);
-  const label = t("rate.asOf", { time });
+  const time = fx.loading ? "--:--" : stamp === "naira" ? formatHmLagos(fx.asOf) : formatHm(fx.asOf);
+  const label = t(stamp === "naira" ? "rate.nairaUpdated" : "rate.asOf", { time });
   if (tone === "pill") {
     return (
       <p className={`rate-pill ${fx.source === "fallback" && !fx.loading ? "is-backup" : ""}`}>
