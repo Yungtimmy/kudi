@@ -225,6 +225,24 @@ a { color: var(--kola-green); }
 .btc-copy .label { color: rgba(35, 36, 107, 0.72); }
 
 .loan-card { background: #f3faf4; }
+.loan-plain { margin-top: 12px; font-size: 15px; line-height: 22px; font-weight: 600; }
+.care-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.care-btn {
+  height: 44px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--kola-green);
+  color: var(--white);
+  font-weight: 600;
+  font-size: 15px;
+}
+.care-btn.outline {
+  background: var(--white);
+  color: var(--kola-green);
+  border: 1.5px solid rgba(14, 124, 74, 0.35);
+}
+.care-form { display: grid; gap: 8px; margin-top: 12px; }
+.care-form .bare { font-size: 28px; line-height: 34px; }
 .loan-grid { display: grid; grid-template-columns: 1fr 1.2fr auto; gap: 8px; align-items: start; margin-top: 12px; }
 .loan-grid .pct { font-size: 28px; line-height: 32px; font-weight: 700; letter-spacing: -0.03em; }
 .loan-grid .px { font-size: 22px; line-height: 26px; font-weight: 700; color: var(--kola-green); }

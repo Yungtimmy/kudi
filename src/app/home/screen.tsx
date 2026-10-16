@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ActivityCard } from "@/components/ActivityCard";
+import { LoanCare } from "@/components/LoanCare";
 import { RateLine } from "@/components/RateLine";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { BottomWave, BtcMark, LinkIcon, PlantArt, SendIcon, ShieldIcon, SwapIcon, WalletIcon } from "@/components/Illustrations";
@@ -25,7 +26,7 @@ export function HomeScreen() {
   const { t } = useI18n();
   const fx = useFx();
   const view = parseViewAddress(useSearchParams().get("address"));
-  const { address, isConnected, watching, musd, btc, coll, debt, ratioPct, protocol, loading } = usePosition(view.address);
+  const { address, isConnected, watching, musd, btc, coll, debt, ratioPct, protocol, loading, refetch } = usePosition(view.address);
   const health = ratioPct == null ? null : loanHealth(ratioPct);
   const liq = coll && debt && protocol.mcr ? liquidationPrice(debt, coll, protocol.mcr) : null;
   const musdNaira = !fx.loading && musd != null ? formatNaira(musdToNaira(musd, fx.ngnPerUsd)) : null;
@@ -107,21 +108,38 @@ export function HomeScreen() {
       <section className="card loan-card">
         <h3>{t("home.loan")}</h3>
         {health && ratioPct != null ? (
-          <div className="loan-grid">
-            <div>
-              <div className="caption">{t("home.ratio")}</div>
-              <div className="pct">{Math.round(ratioPct)}%</div>
+          <>
+            <div className="loan-grid">
+              <div>
+                <div className="caption">{t("home.ratio")}</div>
+                <div className="pct">{Math.round(ratioPct)}%</div>
+              </div>
+              <div>
+                <div className="caption">{t("home.liq")}</div>
+                <div className="px">{liq ? formatUsd(liq) : "—"}</div>
+                <div className="sub">{liqNaira ? `(= ${liqNaira})` : ""}</div>
+              </div>
+              <span className={`badge ${health}`}>
+                <ShieldIcon />
+                {t(`health.${health}`)}
+              </span>
             </div>
-            <div>
-              <div className="caption">{t("home.liq")}</div>
-              <div className="px">{liq ? formatUsd(liq) : "—"}</div>
-              <div className="sub">{liqNaira ? `(= ${liqNaira})` : ""}</div>
-            </div>
-            <span className={`badge ${health}`}>
-              <ShieldIcon />
-              {t(`health.${health}`)}
-            </span>
-          </div>
+            {liq ? (
+              <p className="loan-plain">{t("home.risk", { price: formatUsd(liq), naira: liqNaira ?? "₦—" })}</p>
+            ) : null}
+            {health !== "safe" && isConnected && !watching && coll && debt && protocol.price ? (
+              <LoanCare
+                coll={coll}
+                debt={debt}
+                price={protocol.price}
+                gas={protocol.gas ?? 200n * WAD}
+                minDebt={protocol.minDebt ?? 1800n * WAD}
+                btc={btc}
+                musd={musd}
+                onDone={refetch}
+              />
+            ) : null}
+          </>
         ) : (
           <div style={{ marginTop: 8 }}>
             <strong>{show ? (loading ? "…" : t("home.noLoan")) : "—"}</strong>
