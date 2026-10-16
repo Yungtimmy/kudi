@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, usePublicClient, useSwitchChain, useWriteContract } from "wagmi";
 import { HealthBar } from "@/components/HealthBar";
+import { SideSummary } from "@/components/SideSummary";
 import { ArrowIcon, BtcMark, PercentIcon, ShieldIcon } from "@/components/Illustrations";
 import { RateLine } from "@/components/RateLine";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
@@ -24,6 +25,7 @@ import {
   wholeToWad,
   WAD,
 } from "@/lib/format";
+import { loanHealth } from "@/lib/health";
 import { findTroveHints } from "@/lib/hints";
 import { borrowingFee, liquidationPrice, maxDraw, previewDebt, previewRatioPct } from "@/lib/loan";
 
@@ -146,8 +148,11 @@ export default function BorrowPage() {
 
   const busy = phase === "wallet" || phase === "chain";
 
+  const healthLabel = ratio == null ? "—" : t(`health.${loanHealth(ratio)}`);
+
   return (
-    <main className="screen">
+    <main className="screen form-page">
+      <div className="form-main">
       <h1>{t("borrow.title")}</h1>
       <RecoveryBanner />
       <section className="card">
@@ -275,6 +280,17 @@ export default function BorrowPage() {
         <span><ShieldIcon width={14} height={14} /> {t("common.nonCustodial")}</span>
         <span className="mezo">{t("common.mezo")}</span>
       </div>
+      </div>
+      <SideSummary
+        title={t("layout.summary")}
+        rows={[
+          { label: t("borrow.deposit"), value: shownColl ? `${shownColl} BTC` : "—" },
+          { label: t("borrow.amount"), value: `${musdWhole.toLocaleString("en-US")} MUSD${musdNaira ? ` · ${musdNaira}` : ""}` },
+          { label: t("borrow.fixedLabel"), value: `${protocol.interestPct ?? 1}%` },
+          { label: t("home.ratio"), value: ratio == null ? "—" : `${Math.round(ratio)}% · ${healthLabel}` },
+          { label: t("home.liq"), value: liq ? formatUsd(liq) : "—" },
+        ]}
+      />
     </main>
   );
 }

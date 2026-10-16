@@ -30,7 +30,7 @@ export function Payer() {
   const [error, setError] = useState("");
 
   if (!request) {
-    return <main className="screen"><h1>{t("pay.missing")}</h1></main>;
+    return <main className="screen stage"><h1>{t("pay.missing")}</h1></main>;
   }
 
   const amount = parseAmount(request.amount) ?? 0n;
@@ -66,7 +66,7 @@ export function Payer() {
   };
 
   return (
-    <main className="screen">
+    <main className="screen stage">
       <section className="payer-hero">
         <div className="portrait" aria-hidden="true">
           <BridgeScene />

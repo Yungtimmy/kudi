@@ -1,0 +1,49 @@
+"use client";
+
+import type { Address } from "viem";
+import { useFx } from "@/hooks/useFx";
+import { useActivity } from "@/hooks/useActivity";
+import { useI18n } from "@/i18n/I18nProvider";
+import { formatMusd, formatNaira, formatWhen, musdToNaira } from "@/lib/format";
+import { shortAddr, txUrl } from "@/lib/mezo";
+
+export function ActivityCard({ address }: { address?: Address }) {
+  const { t } = useI18n();
+  const fx = useFx();
+  const activity = useActivity(address);
+  const rows = activity.data ?? [];
+
+  return (
+    <section className="card activity-card wide-only">
+      <h3>{t("home.activity")}</h3>
+      {!address ? <p className="note" style={{ marginTop: 8 }}>{t("home.activityConnect")}</p> : null}
+      {address && activity.isPending ? <p className="note" style={{ marginTop: 8 }}>{t("common.loading")}</p> : null}
+      {address && activity.isError ? <p className="error" style={{ marginTop: 8 }}>{t("home.activityError")}</p> : null}
+      {address && activity.isSuccess && rows.length === 0 ? (
+        <p className="note" style={{ marginTop: 8 }}>{t("home.activityEmpty")}</p>
+      ) : null}
+      {rows.length > 0 ? (
+        <ul className="activity-list">
+          {rows.map((row) => {
+            const naira = fx.loading ? null : formatNaira(musdToNaira(row.value, fx.ngnPerUsd));
+            return (
+              <li key={row.id}>
+                <a href={txUrl(row.hash)}>
+                  <span className={`activity-dir ${row.direction}`}>{t(row.direction === "out" ? "home.sent" : "home.received")}</span>
+                  <span>
+                    <strong className="amount">{formatMusd(row.value)} MUSD</strong>
+                    <span className="caption">
+                      {naira ? `(~ ${naira}) · ` : ""}
+                      {shortAddr(row.counterparty)}
+                      {row.when ? ` · ${formatWhen(row.when)}` : ""}
+                    </span>
+                  </span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </section>
+  );
+}

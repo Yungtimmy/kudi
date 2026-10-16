@@ -89,7 +89,7 @@ export default function ReceiptPage() {
   }
 
   return (
-    <main className="screen receipt">
+    <main className="screen receipt stage">
       <div className={`check-badge ${view.status === "success" ? "" : "muted"}`}><CheckIcon /></div>
       <h1>{title}</h1>
       {view.status === "success" && amountWad != null ? (

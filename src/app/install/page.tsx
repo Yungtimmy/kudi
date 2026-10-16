@@ -41,7 +41,7 @@ export default function InstallPage() {
   }
 
   return (
-    <main className="screen">
+    <main className="screen stage">
       <Adire />
       <div className="install-stage">
         <div className="phone-frame">
