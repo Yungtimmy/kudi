@@ -218,18 +218,19 @@ export function GuidedLoan() {
           <div className="amount" style={{ fontSize: 28, marginTop: 8 }}>{collWei ? `${formatBtc(collWei)} BTC` : "—"}</div>
           <div className="caption">{collNaira ? `~ ${collNaira}` : btc != null ? `${t("borrow.wallet")} ${formatBtc(btc)} BTC` : ""}</div>
           <div className="label" style={{ marginTop: 12 }}>{t("guide.slider")}</div>
-          <input
-            className={`slider zones ${health}`}
-            type="range"
-            min={floor}
-            max={GUIDE_MAX_ICR_PCT}
-            step={1}
-            value={pct}
-            aria-label={t("guide.slider")}
-            aria-valuetext={`${Math.round(pct)}% ${t(`health.${health}`)}`}
-            style={{ background: track }}
-            onChange={(event) => setTargetPct(Number(event.target.value))}
-          />
+          <div className="slider-track" style={{ ["--track" as string]: track }}>
+            <input
+              className={`slider zones ${health}`}
+              type="range"
+              min={floor}
+              max={GUIDE_MAX_ICR_PCT}
+              step={1}
+              value={pct}
+              aria-label={t("guide.slider")}
+              aria-valuetext={`${Math.round(pct)}% ${t(`health.${health}`)}`}
+              onChange={(event) => setTargetPct(Number(event.target.value))}
+            />
+          </div>
           <div className="range-labels">
             <span>{floor}%</span>
             <strong>{Math.round(pct)}% · {t(`health.${health}`)}</strong>
