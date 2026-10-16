@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
 import { BottomWave, CopyIcon, EnvelopeArt } from "@/components/Illustrations";
+import { SideSummary } from "@/components/SideSummary";
 import { RateLine } from "@/components/RateLine";
 import { useFx } from "@/hooks/useFx";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -40,7 +41,8 @@ export default function CreatePayLink() {
   }
 
   return (
-    <main className="screen">
+    <main className="screen form-page">
+      <div className="form-main">
       <h1>{t("paylink.title")}</h1>
       <section className="request">
         <h2>{t("paylink.request")}</h2>
@@ -101,6 +103,16 @@ export default function CreatePayLink() {
         </div>
       </section>
       <BottomWave />
+      </div>
+      <SideSummary
+        title={t("layout.summary")}
+        rows={[
+          { label: t("paylink.amount"), value: amount != null && amount > 0n ? `${amountText.trim()} MUSD${naira ? ` · ${naira}` : ""}` : "—" },
+          { label: t("paylink.name"), value: name.trim() || "—" },
+          { label: t("paylink.note"), value: note.trim() || "—" },
+          { label: t("paylink.share"), value: url ? t("paylink.copy") : t("paylink.needWallet") },
+        ]}
+      />
     </main>
   );
 }

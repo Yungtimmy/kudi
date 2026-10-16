@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from "wagmi";
 import { BtcMark, CoinsArt } from "@/components/Illustrations";
+import { SideSummary } from "@/components/SideSummary";
 import { RateLine } from "@/components/RateLine";
 import { useFx } from "@/hooks/useFx";
 import { usePosition } from "@/hooks/useMezo";
@@ -99,7 +100,8 @@ export default function SwapPage() {
   }
 
   return (
-    <main className="screen">
+    <main className="screen form-page">
+      <div className="form-main">
       <div className="swap-art">
         <h1>{t("swap.title")}</h1>
         <CoinsArt />
@@ -163,6 +165,15 @@ export default function SwapPage() {
           )}
         </ConnectButton.Custom>
       )}
+      </div>
+      <SideSummary
+        title={t("layout.summary")}
+        rows={[
+          { label: t("swap.from"), value: amount && amount > 0n ? `${formatBtc(amount)} BTC` : "—" },
+          { label: t("swap.to"), value: out != null ? `${formatMusd(out)} MUSD${naira ? ` · ${naira}` : ""}` : "—" },
+          { label: t("swap.rateLabel"), value: perBtc != null ? t("swap.rate", { amount: formatMusd(perBtc, 0) }) : "—" },
+        ]}
+      />
     </main>
   );
 }

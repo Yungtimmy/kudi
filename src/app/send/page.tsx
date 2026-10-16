@@ -6,12 +6,13 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { isAddress } from "viem";
 import { useAccount, usePublicClient, useSwitchChain, useWriteContract } from "wagmi";
 import { ArrowIcon, ShieldIcon } from "@/components/Illustrations";
+import { SideSummary } from "@/components/SideSummary";
 import { RateLine } from "@/components/RateLine";
 import { useFx } from "@/hooks/useFx";
 import { usePosition } from "@/hooks/useMezo";
 import { useI18n } from "@/i18n/I18nProvider";
 import { erc20Abi } from "@/lib/abi";
-import { CONTRACTS, MEZO_TESTNET } from "@/lib/mezo";
+import { CONTRACTS, MEZO_TESTNET, shortAddr } from "@/lib/mezo";
 import { formatMusd, formatNaira, musdToNaira, parseAmount, txMessage } from "@/lib/format";
 import { saveReceipt } from "@/lib/paylink";
 
@@ -65,7 +66,8 @@ export default function SendPage() {
   }
 
   return (
-    <main className="screen">
+    <main className="screen form-page">
+      <div className="form-main">
       <h1>{t("send.title")}</h1>
       <section className="card">
         <div className="split">
@@ -111,6 +113,15 @@ export default function SendPage() {
           )}
         </ConnectButton.Custom>
       )}
+      </div>
+      <SideSummary
+        title={t("layout.summary")}
+        rows={[
+          { label: t("send.amount"), value: amount && amount > 0n ? `${formatMusd(amount)} MUSD${naira ? ` · ${naira}` : ""}` : "—" },
+          { label: t("send.to"), value: validTo ? shortAddr(to) : "—" },
+          { label: t("send.note"), value: note.trim() || "—" },
+        ]}
+      />
     </main>
   );
 }
