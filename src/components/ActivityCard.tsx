@@ -32,9 +32,12 @@ export function ActivityCard({ address }: { address?: Address }) {
                   <span className={`activity-dir ${row.direction}`}>{t(row.direction === "out" ? "home.sent" : "home.received")}</span>
                   <span>
                     <strong className="amount">{formatMusd(row.value)} MUSD</strong>
-                    <span className="caption">{naira ? `(~ ${naira})` : ""} · {shortAddr(row.counterparty)}</span>
+                    <span className="caption">
+                      {naira ? `(~ ${naira}) · ` : ""}
+                      {shortAddr(row.counterparty)}
+                      {row.when ? ` · ${formatWhen(row.when)}` : ""}
+                    </span>
                   </span>
-                  <span className="caption">{row.when ? formatWhen(row.when) : ""}</span>
                 </a>
               </li>
             );
