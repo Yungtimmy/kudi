@@ -12,7 +12,7 @@ export function Header() {
   return (
     <header className="header">
       <Link href="/" className="logo" aria-label="kudi">
-        kud<span className="logo-i" aria-hidden="true"><span className="logo-stem" /><span className="logo-dot" /></span>
+        kud<span className="logo-i">i</span>
       </Link>
       <div className="cluster">
         <LanguageToggle />

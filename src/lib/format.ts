@@ -81,7 +81,7 @@ export function wholeToWad(whole: number): bigint {
 export function formatHm(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "--:--";
-  return `${d.getHours()}:${d.getMinutes().toString().padStart(2, "0")}`;
+  return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
 }
 
 export function formatWhen(unixSeconds: number): string {

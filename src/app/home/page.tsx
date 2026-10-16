@@ -37,7 +37,7 @@ export default function Home() {
           <span className="amount big">{isConnected ? (musd == null ? "…" : formatMusd(musd)) : "—"}</span>
           <span className="unit">MUSD</span>
         </div>
-        <div className="naira">{isConnected && musdNaira ? `(~ ${musdNaira})` : isConnected ? "(~ …)" : t("home.connect")}</div>
+        <div className="naira">{isConnected && musdNaira ? `(~ ${musdNaira})` : "(~ ₦—)"}</div>
         <div className="rate-chip">
           <RateLine tone="on-green" />
         </div>

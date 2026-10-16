@@ -81,7 +81,7 @@ export default function BorrowPage() {
   const ratio = collWei == null ? null : previewRatioPct(collWei, price, totalDebt);
   const liq = collWei == null ? null : liquidationPrice(totalDebt, collWei, mcr);
   const withdrawing = !opening && collWei != null && collWei < currentColl;
-  const collNaira = !fx.loading && collWei != null && price > 0n
+  const collNaira = !fx.loading && collWei != null && collWei > 0n && price > 0n
     ? formatNaira(musdToNaira((collWei * price) / WAD, fx.ngnPerUsd))
     : null;
   const musdNaira = !fx.loading ? formatNaira(musdToNaira(amount, fx.ngnPerUsd)) : null;
@@ -204,7 +204,7 @@ export default function BorrowPage() {
         />
         <div className="range-labels">
           <span>{t("borrow.min", { amount: minWhole.toLocaleString("en-US") })}</span>
-          <span>{t("borrow.max", { amount: maxWhole.toLocaleString("en-US") })}</span>
+          <span>{drawCap > 0n ? t("borrow.max", { amount: maxWhole.toLocaleString("en-US") }) : t("borrow.max", { amount: "—" })}</span>
         </div>
       </section>
 

@@ -37,10 +37,11 @@ export default function ReceiptPage() {
   }, [hash]);
 
   useEffect(() => {
-    if (!client || !/^0x[a-fA-F0-9]{64}$/.test(hash)) {
+    if (!/^0x[a-fA-F0-9]{64}$/.test(hash)) {
       setView({ status: "missing" });
       return;
     }
+    if (!client) return;
     let gone = false;
     (async () => {
       try {

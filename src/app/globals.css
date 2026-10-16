@@ -44,6 +44,7 @@ a { color: var(--kola-green); }
   margin: 0 auto;
   position: relative;
   padding-bottom: 28px;
+  overflow-x: clip;
 }
 
 .header {
@@ -61,14 +62,17 @@ a { color: var(--kola-green); }
   font-size: 30px;
   line-height: 1;
 }
-.logo-i { position: relative; width: 0.32em; height: 0.78em; margin-left: 0.03em; }
-.logo-stem {
-  position: absolute; left: 0.08em; bottom: 0; width: 0.12em; height: 0.52em;
-  background: currentColor; border-radius: 1px;
-}
-.logo-dot {
-  position: absolute; top: 0; left: 0.02em; width: 0.22em; height: 0.22em;
-  border-radius: 50%; background: var(--suya-orange);
+.logo-i { position: relative; }
+.logo-i::after {
+  content: "";
+  position: absolute;
+  top: 0.08em;
+  left: 50%;
+  width: 0.28em;
+  height: 0.28em;
+  border-radius: 50%;
+  background: var(--suya-orange);
+  transform: translateX(-50%);
 }
 
 .lang {
