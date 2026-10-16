@@ -6,9 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint && node scripts/check-musd-abi.mjs"
   },
   "dependencies": {
+    "@mezo-org/musd-contracts": "^1.1.0",
     "@mezo-org/passport": "0.17.2",
     "@rainbow-me/rainbowkit": "2.2.4",
     "@tanstack/react-query": "^5.59.0",
@@ -22,6 +23,8 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.35",
     "typescript": "^5"
   },
   "overrides": {
