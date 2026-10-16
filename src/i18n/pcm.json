@@ -1,0 +1,10 @@
+{ "app.name": "kudi", "app.testnet": "Testnet",
+  "landing.title": "Naira money wey Bitcoin back, for your pocket", "landing.connect": "Connect with Mezo Passport",
+  "home.title": "Home", "home.balances": "Your money", "home.loanHealth": "How your loan dey",
+  "health.safe": "E dey safe", "health.warning": "E don dey near", "health.danger": "Wahala: e don near liquidation",
+  "actions.borrow": "Borrow", "actions.swap": "Change am", "actions.send": "Send", "actions.payLink": "Pay link",
+  "borrow.title": "Borrow MUSD", "swap.title": "Change BTC to MUSD",
+  "paylink.title": "Make pay link", "paylink.name": "Your name (if you want)", "paylink.note": "Wetin e be for", "paylink.whatsapp": "Share for WhatsApp", "paylink.copy": "Copy link",
+  "pay.title": "Pay", "pay.check": "Check the address well before you pay",
+  "receipt.title": "Money don go", "receipt.explorer": "Check am for Mezo explorer",
+  "install.title": "Put Kudi for your phone like app", "rate.asOf": "rate as of {time}", "common.comingSoon": "E dey come for Wave 1" }
