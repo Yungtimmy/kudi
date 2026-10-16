@@ -1,2 +1,10 @@
-import { Placeholder } from "@/components/Placeholder";
-export default function Page() { return <Placeholder titleKey="pay.title" screen={6} />; }
+import { Suspense } from "react";
+import { Payer } from "./payer";
+
+export default function PayPage() {
+  return (
+    <Suspense fallback={<main className="screen"><p className="caption">…</p></main>}>
+      <Payer />
+    </Suspense>
+  );
+}

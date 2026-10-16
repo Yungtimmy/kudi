@@ -1,6 +1,6 @@
 "use client";
 import "@rainbow-me/rainbowkit/styles.css";
-import { RainbowKitProvider } from "@rainbow-me/rainbowkit";
+import { RainbowKitProvider, lightTheme } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
 import { getConfig, mezoTestnet } from "@mezo-org/passport";
@@ -10,6 +10,6 @@ const config = getConfig({ appName: "Kudi", mezoNetwork: "testnet", walletConnec
 export function Providers({ children }: { children: ReactNode }) {
   const [qc] = useState(() => new QueryClient());
   return (<WagmiProvider config={config}><QueryClientProvider client={qc}>
-    <RainbowKitProvider initialChain={mezoTestnet}><I18nProvider>{children}</I18nProvider></RainbowKitProvider>
+    <RainbowKitProvider initialChain={mezoTestnet} theme={lightTheme({ accentColor: "#0E7C4A", accentColorForeground: "#fff", borderRadius: "large" })}><I18nProvider>{children}</I18nProvider></RainbowKitProvider>
   </QueryClientProvider></WagmiProvider>);
 }
