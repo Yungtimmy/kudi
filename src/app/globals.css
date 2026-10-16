@@ -671,6 +671,7 @@ a { color: var(--kola-green); }
   .home-dash .viewbar,
   .home-dash .recovery,
   .home-dash .activity-card,
+  .home-dash .faucet-card,
   .home-dash .readonly-note { grid-column: 1 / -1; }
   .home-dash .hero-balance,
   .home-dash .card { margin-bottom: 0; }

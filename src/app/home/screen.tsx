@@ -12,7 +12,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { loanHealth } from "@/lib/health";
 import { btcToNaira, formatBtc, formatMusd, formatNaira, formatUsd, musdToNaira, WAD } from "@/lib/format";
 import { liquidationPrice } from "@/lib/loan";
-import { parseViewAddress, viewAddr } from "@/lib/mezo";
+import { MEZO_TESTNET, parseViewAddress, viewAddr } from "@/lib/mezo";
 
 const actions = [
   { href: "/borrow", key: "actions.borrow", icon: WalletIcon },
@@ -25,7 +25,7 @@ export function HomeScreen() {
   const { t } = useI18n();
   const fx = useFx();
   const view = parseViewAddress(useSearchParams().get("address"));
-  const { address, watching, musd, btc, coll, debt, ratioPct, protocol, loading } = usePosition(view.address);
+  const { address, isConnected, watching, musd, btc, coll, debt, ratioPct, protocol, loading } = usePosition(view.address);
   const health = ratioPct == null ? null : loanHealth(ratioPct);
   const liq = coll && debt && protocol.mcr ? liquidationPrice(debt, coll, protocol.mcr) : null;
   const musdNaira = !fx.loading && musd != null ? formatNaira(musdToNaira(musd, fx.ngnPerUsd)) : null;
@@ -80,6 +80,29 @@ export function HomeScreen() {
           <div className="caption">{show && btcNaira ? `(~ ${btcNaira})` : loading ? t("common.loading") : ""}</div>
         </div>
       </section>
+
+      {isConnected && !watching && btc === 0n ? (
+        <section className="card faucet-card">
+          <h3>{t("home.getBtcTitle")}</h3>
+          <p className="note" style={{ margin: "8px 0 12px" }}>{t("home.getBtcBody")}</p>
+          <a className="btn" href={MEZO_TESTNET.faucet} target="_blank" rel="noreferrer">
+            <span />
+            <span>{t("home.getBtcAction")}</span>
+            <span />
+          </a>
+        </section>
+      ) : null}
+      {isConnected && !watching && !loading && coll == null && btc != null && btc > 0n ? (
+        <section className="card faucet-card">
+          <h3>{t("home.borrowNowTitle")}</h3>
+          <p className="note" style={{ margin: "8px 0 12px" }}>{t("home.borrowNowBody")}</p>
+          <Link className="btn" href="/borrow">
+            <span />
+            <span>{t("home.borrowNow")}</span>
+            <span />
+          </Link>
+        </section>
+      ) : null}
 
       <section className="card loan-card">
         <h3>{t("home.loan")}</h3>
