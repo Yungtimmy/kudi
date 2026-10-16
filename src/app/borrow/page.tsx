@@ -12,6 +12,7 @@ import { useFx } from "@/hooks/useFx";
 import { usePosition } from "@/hooks/useMezo";
 import { useI18n } from "@/i18n/I18nProvider";
 import { borrowerOpsAbi } from "@/lib/abi";
+import { ensureBitcoinAccount, WalletNotConnectedError } from "@/lib/bitcoinWallet";
 import { CONTRACTS, MEZO_TESTNET, txUrl } from "@/lib/mezo";
 import {
   formatBtc,
@@ -44,7 +45,7 @@ function AdjustLoan() {
   const { t } = useI18n();
   const fx = useFx();
   const { address, isConnected, btc, coll, debt, protocol, refetch } = usePosition();
-  const { chainId } = useAccount();
+  const { chainId, connector } = useAccount();
   const publicClient = usePublicClient({ chainId: MEZO_TESTNET.chainId });
   const { writeContractAsync } = useWriteContract();
   const { switchChainAsync } = useSwitchChain();
@@ -110,15 +111,18 @@ function AdjustLoan() {
   else if (!opening && amount === 0n && collWei === currentColl) block = t("borrow.needBtc");
 
   async function confirm() {
-    if (!address || !publicClient || block || collWei == null) return;
+    if (!publicClient || block || collWei == null) return;
     setError("");
     setPhase("wallet");
     try {
+      if (!address) throw new WalletNotConnectedError();
+      await ensureBitcoinAccount(connector);
       if (chainId !== MEZO_TESTNET.chainId) await switchChainAsync({ chainId: MEZO_TESTNET.chainId });
       const hints = await findTroveHints(publicClient, collWei, totalDebt);
       const added = opening ? collWei : collWei - currentColl;
       const hash = opening
         ? await writeContractAsync({
+            account: address,
             address: CONTRACTS.BorrowerOperations,
             abi: borrowerOpsAbi,
             functionName: "openTrove",
@@ -127,6 +131,7 @@ function AdjustLoan() {
             chainId: MEZO_TESTNET.chainId,
           })
         : await writeContractAsync({
+            account: address,
             address: CONTRACTS.BorrowerOperations,
             abi: borrowerOpsAbi,
             functionName: "adjustTrove",
@@ -141,7 +146,7 @@ function AdjustLoan() {
       setPhase("done");
       refetch();
     } catch (err) {
-      setError(txMessage(err, t("common.closed")));
+      setError(err instanceof WalletNotConnectedError ? t("wallet.connectFirst") : txMessage(err, t("common.closed")));
       setPhase("idle");
     }
   }

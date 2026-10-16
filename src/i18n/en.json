@@ -20,6 +20,7 @@
   "common.copied": "Copied",
   "common.loading": "Reading Mezo testnet…",
   "common.closed": "You closed the wallet before it could send.",
+  "wallet.connectFirst": "Connect your wallet first",
   "common.nonCustodial": "Non-custodial. You stay in control of your Bitcoin.",
   "common.mezo": "Mezo TESTNET",
   "health.safe": "Safe",

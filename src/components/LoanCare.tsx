@@ -7,6 +7,7 @@ import { borrowerOpsAbi, erc20Abi } from "@/lib/abi";
 import { formatBtc, formatMusd, parseAmount, txMessage } from "@/lib/format";
 import { findTroveHints } from "@/lib/hints";
 import { SAFE_ICR_PCT, collateralForRatio, previewRatioPct } from "@/lib/loan";
+import { ensureBitcoinAccount, WalletNotConnectedError } from "@/lib/bitcoinWallet";
 import { CONTRACTS, MEZO_TESTNET, txUrl } from "@/lib/mezo";
 
 type Props = {
@@ -22,7 +23,7 @@ type Props = {
 
 export function LoanCare(props: Props) {
   const { t } = useI18n();
-  const { address, chainId } = useAccount();
+  const { address, chainId, connector } = useAccount();
   const publicClient = usePublicClient({ chainId: MEZO_TESTNET.chainId });
   const { writeContractAsync } = useWriteContract();
   const { switchChainAsync } = useSwitchChain();
@@ -77,13 +78,16 @@ export function LoanCare(props: Props) {
   }
 
   async function submit() {
-    if (!address || !publicClient || amount == null || amount <= 0n || block || !mode) return;
+    if (!publicClient || amount == null || amount <= 0n || block || !mode) return;
     setError("");
     setPhase("wallet");
     try {
+      if (!address) throw new WalletNotConnectedError();
+      await ensureBitcoinAccount(connector);
       if (chainId !== MEZO_TESTNET.chainId) await switchChainAsync({ chainId: MEZO_TESTNET.chainId });
       if (mode === "repay" && needsApproval) {
         const approveHash = await writeContractAsync({
+          account: address,
           address: CONTRACTS.MUSD,
           abi: erc20Abi,
           functionName: "approve",
@@ -100,6 +104,7 @@ export function LoanCare(props: Props) {
       const hints = await findTroveHints(publicClient, nextColl, nextDebt);
       const hash = mode === "add"
         ? await writeContractAsync({
+            account: address,
             address: CONTRACTS.BorrowerOperations,
             abi: borrowerOpsAbi,
             functionName: "addColl",
@@ -108,6 +113,7 @@ export function LoanCare(props: Props) {
             chainId: MEZO_TESTNET.chainId,
           })
         : await writeContractAsync({
+            account: address,
             address: CONTRACTS.BorrowerOperations,
             abi: borrowerOpsAbi,
             functionName: "repayMUSD",
@@ -121,7 +127,7 @@ export function LoanCare(props: Props) {
       setPhase("done");
       props.onDone();
     } catch (err) {
-      setError(txMessage(err, t("common.closed")));
+      setError(err instanceof WalletNotConnectedError ? t("wallet.connectFirst") : txMessage(err, t("common.closed")));
       setPhase("idle");
     }
   }

@@ -20,6 +20,7 @@
   "common.copied": "E don copy",
   "common.loading": "We dey read Mezo testnet…",
   "common.closed": "You close the wallet before e fit send.",
+  "wallet.connectFirst": "You gatz connect your wallet first",
   "common.nonCustodial": "You dey hold your own key. Your Bitcoin still dey for your hand.",
   "common.mezo": "Mezo TESTNET",
   "health.safe": "E dey safe",

@@ -10,6 +10,7 @@ import { useFx } from "@/hooks/useFx";
 import { usePosition } from "@/hooks/useMezo";
 import { useI18n } from "@/i18n/I18nProvider";
 import { erc20Abi, routerAbi } from "@/lib/abi";
+import { ensureBitcoinAccount, WalletNotConnectedError } from "@/lib/bitcoinWallet";
 import { btcToMusdRoute, CONTRACTS, MEZO_TESTNET, txUrl } from "@/lib/mezo";
 import { formatBtc, formatMusd, formatNaira, musdToNaira, parseAmount, txMessage, WAD } from "@/lib/format";
 
@@ -31,7 +32,7 @@ export default function SwapPage() {
   const { t } = useI18n();
   const fx = useFx();
   const { address, isConnected, btc, refetch } = usePosition();
-  const { chainId } = useAccount();
+  const { chainId, connector } = useAccount();
   const publicClient = usePublicClient({ chainId: MEZO_TESTNET.chainId });
   const { writeContractAsync } = useWriteContract();
   const { switchChainAsync } = useSwitchChain();
@@ -74,13 +75,16 @@ export default function SwapPage() {
   else if (btc != null && amount > btc) block = t("swap.funds");
 
   async function submit() {
-    if (!address || !publicClient || !amount || amount <= 0n || out == null || block) return;
+    if (!publicClient || !amount || amount <= 0n || out == null || block) return;
     setError("");
     setPhase("wallet");
     try {
+      if (!address) throw new WalletNotConnectedError();
+      await ensureBitcoinAccount(connector);
       if (chainId !== MEZO_TESTNET.chainId) await switchChainAsync({ chainId: MEZO_TESTNET.chainId });
       if (needsApproval) {
         const approveHash = await writeContractAsync({
+          account: address,
           address: CONTRACTS.BTC,
           abi: erc20Abi,
           functionName: "approve",
@@ -96,6 +100,7 @@ export default function SwapPage() {
       const minOut = (out * 995n) / 1000n;
       const deadline = BigInt(Math.floor(Date.now() / 1000) + 20 * 60);
       const hash = await writeContractAsync({
+        account: address,
         address: CONTRACTS.SwapRouter,
         abi: routerAbi,
         functionName: "swapExactTokensForTokens",
@@ -109,7 +114,8 @@ export default function SwapPage() {
       setPhase("done");
       refetch();
     } catch (err) {
-      setError(txMessage(err, t("common.closed")));
+      console.error(err);
+      setError(err instanceof WalletNotConnectedError ? t("wallet.connectFirst") : txMessage(err, t("common.closed")));
       setPhase("idle");
     }
   }
