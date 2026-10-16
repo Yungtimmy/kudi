@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount, usePublicClient, useSwitchChain, useWriteContract } from "wagmi";
+import { useAccount, useConfig, usePublicClient, useSwitchChain } from "wagmi";
 import { HealthBar } from "@/components/HealthBar";
 import { SideSummary } from "@/components/SideSummary";
 import { ArrowIcon, BtcMark, PercentIcon, ShieldIcon } from "@/components/Illustrations";
@@ -13,6 +13,7 @@ import { usePosition } from "@/hooks/useMezo";
 import { useI18n } from "@/i18n/I18nProvider";
 import { borrowerOpsAbi } from "@/lib/abi";
 import { ensureBitcoinAccount, WalletNotConnectedError } from "@/lib/bitcoinWallet";
+import { sendContractWrite } from "@/lib/walletWrite";
 import { CONTRACTS, MEZO_TESTNET, txUrl } from "@/lib/mezo";
 import {
   formatBtc,
@@ -46,8 +47,8 @@ function AdjustLoan() {
   const fx = useFx();
   const { address, isConnected, btc, coll, debt, protocol, refetch } = usePosition();
   const { chainId, connector } = useAccount();
+  const config = useConfig();
   const publicClient = usePublicClient({ chainId: MEZO_TESTNET.chainId });
-  const { writeContractAsync } = useWriteContract();
   const { switchChainAsync } = useSwitchChain();
 
   const [collText, setCollText] = useState("");
@@ -121,23 +122,19 @@ function AdjustLoan() {
       const hints = await findTroveHints(publicClient, collWei, totalDebt);
       const added = opening ? collWei : collWei - currentColl;
       const hash = opening
-        ? await writeContractAsync({
-            account: address,
+        ? await sendContractWrite(config, connector, address, {
             address: CONTRACTS.BorrowerOperations,
             abi: borrowerOpsAbi,
             functionName: "openTrove",
             args: [amount, hints.upper, hints.lower],
             value: collWei,
-            chainId: MEZO_TESTNET.chainId,
           })
-        : await writeContractAsync({
-            account: address,
+        : await sendContractWrite(config, connector, address, {
             address: CONTRACTS.BorrowerOperations,
             abi: borrowerOpsAbi,
             functionName: "adjustTrove",
             args: [0n, amount, amount > 0n, hints.upper, hints.lower],
             value: added,
-            chainId: MEZO_TESTNET.chainId,
           });
       setPhase("chain");
       setTx(hash);

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from "wagmi";
+import { useAccount, useConfig, usePublicClient, useReadContract, useSwitchChain } from "wagmi";
 import { useI18n } from "@/i18n/I18nProvider";
 import { borrowerOpsAbi, erc20Abi } from "@/lib/abi";
 import { formatBtc, formatMusd, parseAmount, txMessage } from "@/lib/format";
 import { findTroveHints } from "@/lib/hints";
 import { SAFE_ICR_PCT, collateralForRatio, previewRatioPct } from "@/lib/loan";
 import { ensureBitcoinAccount, WalletNotConnectedError } from "@/lib/bitcoinWallet";
+import { sendContractWrite } from "@/lib/walletWrite";
 import { CONTRACTS, MEZO_TESTNET, txUrl } from "@/lib/mezo";
 
 type Props = {
@@ -24,8 +25,8 @@ type Props = {
 export function LoanCare(props: Props) {
   const { t } = useI18n();
   const { address, chainId, connector } = useAccount();
+  const config = useConfig();
   const publicClient = usePublicClient({ chainId: MEZO_TESTNET.chainId });
-  const { writeContractAsync } = useWriteContract();
   const { switchChainAsync } = useSwitchChain();
   const [mode, setMode] = useState<"add" | "repay" | null>(null);
   const [text, setText] = useState("");
@@ -86,13 +87,11 @@ export function LoanCare(props: Props) {
       await ensureBitcoinAccount(connector);
       if (chainId !== MEZO_TESTNET.chainId) await switchChainAsync({ chainId: MEZO_TESTNET.chainId });
       if (mode === "repay" && needsApproval) {
-        const approveHash = await writeContractAsync({
-          account: address,
+        const approveHash = await sendContractWrite(config, connector, address, {
           address: CONTRACTS.MUSD,
           abi: erc20Abi,
           functionName: "approve",
           args: [CONTRACTS.BorrowerOperations, amount],
-          chainId: MEZO_TESTNET.chainId,
         });
         setPhase("chain");
         const approved = await publicClient.waitForTransactionReceipt({ hash: approveHash });
@@ -103,22 +102,18 @@ export function LoanCare(props: Props) {
       }
       const hints = await findTroveHints(publicClient, nextColl, nextDebt);
       const hash = mode === "add"
-        ? await writeContractAsync({
-            account: address,
+        ? await sendContractWrite(config, connector, address, {
             address: CONTRACTS.BorrowerOperations,
             abi: borrowerOpsAbi,
             functionName: "addColl",
             args: [hints.upper, hints.lower],
             value: amount,
-            chainId: MEZO_TESTNET.chainId,
           })
-        : await writeContractAsync({
-            account: address,
+        : await sendContractWrite(config, connector, address, {
             address: CONTRACTS.BorrowerOperations,
             abi: borrowerOpsAbi,
             functionName: "repayMUSD",
             args: [amount, hints.upper, hints.lower],
-            chainId: MEZO_TESTNET.chainId,
           });
       setPhase("chain");
       setTx(hash);
