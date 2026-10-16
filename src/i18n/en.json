@@ -1,6 +1,12 @@
 {
   "app.name": "kudi",
   "app.testnet": "Testnet",
+  "nav.menu": "Sections",
+  "nav.home": "Home",
+  "nav.borrow": "Borrow",
+  "nav.swap": "Swap",
+  "nav.pay": "Pay",
+  "nav.send": "Send",
   "landing.heroTitle": "Dollars backed by Bitcoin.",
   "landing.heroAccent": "Your keys, your money",
   "landing.connect": "Connect with Mezo Passport",

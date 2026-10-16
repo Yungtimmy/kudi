@@ -34,7 +34,7 @@ export function HomeScreen() {
 
   if (view.invalid) {
     return (
-      <main className="screen">
+      <main className="screen stage">
         <section className="card">
           <h3>{t("home.badAddressTitle")}</h3>
           <p className="note" style={{ marginTop: 8 }}>{t("home.badAddress")}</p>

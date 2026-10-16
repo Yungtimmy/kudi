@@ -162,6 +162,14 @@ export function BottomWave() {
   );
 }
 
+export function HomeIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-5v-5H10v5H5a1 1 0 0 1-1-1v-8Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 export function WalletIcon(props: IconProps) {
   return (
     <Svg {...props}>

@@ -11,7 +11,7 @@ export default function Landing() {
   const { t } = useI18n();
   const { isConnected } = useAccount();
   return (
-    <main className="screen">
+    <main className="screen landing stage">
       <Adire />
       <section className="hero">
         <h1>
