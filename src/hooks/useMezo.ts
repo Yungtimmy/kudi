@@ -1,5 +1,6 @@
 "use client";
 
+import type { Address } from "viem";
 import { useAccount, useBalance, useReadContract, useReadContracts } from "wagmi";
 import { borrowerOpsAbi, erc20Abi, interestRateAbi, troveManagerAbi, priceFeedAbi } from "@/lib/abi";
 import { CONTRACTS, MEZO_TESTNET } from "@/lib/mezo";
@@ -79,8 +80,10 @@ export function useProtocol() {
   };
 }
 
-export function usePosition() {
-  const { address, isConnected } = useAccount();
+/** Balances and trove for `watch`, or for the connected wallet when `watch` is omitted. */
+export function usePosition(watch?: Address) {
+  const account = useAccount();
+  const address = watch ?? account.address;
   const protocol = useProtocol();
   const price = protocol.price;
 
@@ -128,16 +131,20 @@ export function usePosition() {
   const debt = active ? cell<bigint>(2) : undefined;
   const icr = active ? cell<bigint>(3) : undefined;
 
+  const troveWaiting = !protocol.priceError && (price == null || trove.isPending);
+
   return {
     address,
-    isConnected,
+    isConnected: account.isConnected,
+    watching: watch != null,
     protocol,
     btc: btc.data?.value,
     musd: musd.data,
     coll,
     debt,
+    /** TroveManager.getCurrentICR. Debt includes the gas reserve, so this is not a principal-only ratio. */
     ratioPct: icr == null ? undefined : wadToPct(icr),
-    loading: Boolean(address) && (btc.isPending || musd.isPending || (price != null && trove.isPending)),
+    loading: Boolean(address) && (btc.isPending || musd.isPending || troveWaiting),
     refetch() {
       void btc.refetch();
       void musd.refetch();
