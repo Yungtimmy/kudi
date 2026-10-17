@@ -7,7 +7,7 @@ export function useFx() {
   const query = useQuery({
     queryKey: ["kudi", "fx", "ngn"],
     queryFn: async (): Promise<FxQuote> => {
-      const res = await fetch("/api/fx");
+      const res = await fetch("/api/fx", { signal: AbortSignal.timeout(4_000) });
       if (!res.ok) throw new Error("fx");
       const data = (await res.json()) as FxQuote;
       if (!Number.isFinite(data.ngnPerUsd) || data.ngnPerUsd <= 0) throw new Error("fx");

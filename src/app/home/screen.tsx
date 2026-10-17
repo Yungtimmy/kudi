@@ -16,6 +16,10 @@ import { btcToNaira, formatBtc, formatMusd, formatNaira, formatUsd, musdToNaira,
 import { liquidationPrice } from "@/lib/loan";
 import { MEZO_TESTNET, parseViewAddress, viewAddr } from "@/lib/mezo";
 
+function Skel({ label, wide = false }: { label: string; wide?: boolean }) {
+  return <span className={wide ? "skel wide" : "skel"} role="status" aria-label={label} />;
+}
+
 const actions = [
   { href: "/borrow", key: "actions.borrow", icon: WalletIcon },
   { href: "/swap", key: "actions.swap", icon: SwapIcon },
@@ -28,7 +32,7 @@ export function HomeScreen() {
   const reconnecting = useReconnectPending();
   const fx = useFx();
   const view = parseViewAddress(useSearchParams().get("address"));
-  const { address, isConnected, watching, musd, btc, coll, debt, ratioPct, protocol, loading, refetch } = usePosition(view.address);
+  const { address, isConnected, watching, musd, btc, coll, debt, ratioPct, protocol, loanState, readsSettled, loading, refetch } = usePosition(view.address);
   const health = ratioPct == null ? null : loanHealth(ratioPct);
   const liq = coll && debt && protocol.mcr ? liquidationPrice(debt, coll, protocol.mcr) : null;
   const musdNaira = !fx.loading && musd != null ? formatNaira(musdToNaira(musd, fx.ngnPerUsd)) : null;
@@ -65,7 +69,7 @@ export function HomeScreen() {
       <section className="hero-balance">
         <div className="label">{t("home.musd")}</div>
         <div className="figure">
-          <span className="amount big">{show ? (musd == null ? "…" : formatMusd(musd)) : "—"}</span>
+          <span className="amount big">{show ? (musd == null ? <Skel label={t("common.loading")} /> : formatMusd(musd)) : "—"}</span>
           <span className="unit">MUSD</span>
         </div>
         <div className="naira">{show && musdNaira ? `(~ ${musdNaira})` : "(~ ₦—)"}</div>
@@ -79,12 +83,12 @@ export function HomeScreen() {
         <BtcMark size={52} />
         <div className="btc-copy">
           <div className="label">{t("home.btc")}</div>
-          <div className="amount" style={{ fontSize: 22 }}>{show ? (btc == null ? "…" : `${formatBtc(btc)} BTC`) : "— BTC"}</div>
-          <div className="caption">{show && btcNaira ? `(~ ${btcNaira})` : loading ? t("common.loading") : ""}</div>
+          <div className="amount" style={{ fontSize: 22 }}>{show ? (btc == null ? <Skel label={t("common.loading")} /> : `${formatBtc(btc)} BTC`) : "— BTC"}</div>
+          <div className="caption">{show && btcNaira ? `(~ ${btcNaira})` : ""}</div>
         </div>
       </section>
 
-      {isConnected && !watching && btc === 0n ? (
+      {isConnected && !watching && readsSettled && btc === 0n ? (
         <section className="card faucet-card">
           <h3>{t("home.getBtcTitle")}</h3>
           <p className="note" style={{ margin: "8px 0 12px" }}>{t("home.getBtcBody")}</p>
@@ -95,7 +99,7 @@ export function HomeScreen() {
           </a>
         </section>
       ) : null}
-      {isConnected && !watching && !loading && coll == null && btc != null && btc > 0n ? (
+      {isConnected && !watching && readsSettled && coll == null && btc != null && btc > 0n ? (
         <section className="card faucet-card">
           <h3>{t("home.borrowNowTitle")}</h3>
           <p className="note" style={{ margin: "8px 0 12px" }}>{t("home.borrowNowBody")}</p>
@@ -142,11 +146,19 @@ export function HomeScreen() {
               />
             ) : null}
           </>
+        ) : show && loanState === "active" && ratioPct == null ? (
+          <div style={{ marginTop: 8 }} aria-busy={protocol.priceError ? undefined : true}>
+            {protocol.priceError ? <strong>—</strong> : <Skel label={t("common.loading")} wide />}
+          </div>
+        ) : show && loanState === "unknown" && loading ? (
+          <div style={{ marginTop: 8 }} aria-busy="true">
+            <Skel label={t("common.loading")} wide />
+          </div>
         ) : (
           <div style={{ marginTop: 8 }}>
-            <strong>{show ? (loading ? "…" : t("home.noLoan")) : "—"}</strong>
+            <strong>{show ? t("home.noLoan") : "—"}</strong>
             <p className="note" style={{ marginTop: 4 }}>
-              {show ? (loading ? t("common.loading") : t("home.noLoanBody")) : reconnecting ? t("wallet.reconnecting") : t("home.connect")}
+              {show ? t("home.noLoanBody") : reconnecting ? t("wallet.reconnecting") : t("home.connect")}
             </p>
           </div>
         )}
@@ -155,13 +167,13 @@ export function HomeScreen() {
       <section className="card price-card wide-only">
         <div className="label">{t("home.btcPrice")}</div>
         <div className="amount" style={{ fontSize: 28, marginTop: 8 }}>
-          {protocol.price ? formatUsd(protocol.price) : protocol.priceError ? "—" : "…"}
+          {protocol.price != null ? formatUsd(protocol.price) : protocol.priceError ? "—" : <Skel label={t("common.loading")} />}
         </div>
         <div className="naira" style={{ color: "var(--kola-green)" }}>{priceNaira ? `(~ ${priceNaira})` : ""}</div>
         <div style={{ marginTop: 8 }}><RateLine /></div>
       </section>
 
-      <ActivityCard address={show ? address : undefined} />
+      <ActivityCard address={show ? address : undefined} paused={(!watching && reconnecting) || !readsSettled} />
 
       <h3 className="mobile-only" style={{ margin: "16px 0 8px" }}>{t("home.actions")}</h3>
       <nav className="actions mobile-only" aria-label={t("home.actions")}>

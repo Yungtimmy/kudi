@@ -18,12 +18,15 @@ export type ActivityRow = {
 
 type Draft = ActivityRow & { block: bigint };
 
-export function useActivity(address?: Address) {
+export function useActivity(address?: Address, enabled = true) {
   const client = usePublicClient({ chainId: MEZO_TESTNET.chainId });
   return useQuery({
     queryKey: ["kudi", "activity", address],
-    enabled: Boolean(client && address),
+    // Home turns this on after the balance multicall, so the 9_000-block scan
+    // does not compete with reconnect or the cards.
+    enabled: Boolean(client && address && enabled),
     staleTime: 30_000,
+    retry: 1,
     queryFn: async (): Promise<ActivityRow[]> => {
       if (!client || !address) return [];
       const latest = await client.getBlockNumber();
