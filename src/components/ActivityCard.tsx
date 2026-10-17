@@ -8,18 +8,23 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { formatMusd, formatNaira, formatWhen, musdToNaira } from "@/lib/format";
 import { shortAddr, txUrl } from "@/lib/mezo";
 
-export function ActivityCard({ address }: { address?: Address }) {
+export function ActivityCard({ address, paused = false }: { address?: Address; paused?: boolean }) {
   const { t } = useI18n();
   const reconnecting = useReconnectPending();
   const fx = useFx();
-  const activity = useActivity(address);
+  const activity = useActivity(address, !paused);
   const rows = activity.data ?? [];
 
   return (
     <section className="card activity-card wide-only">
       <h3>{t("home.activity")}</h3>
       {!address ? <p className="note" style={{ marginTop: 8 }}>{reconnecting ? t("wallet.reconnecting") : t("home.activityConnect")}</p> : null}
-      {address && activity.isPending ? <p className="note" style={{ marginTop: 8 }}>{t("common.loading")}</p> : null}
+      {address && rows.length === 0 && !activity.isError && (paused || activity.isFetching) ? (
+        <div className="skel-stack" role="status" aria-label={t("common.loading")}>
+          <span className="skel wide" />
+          <span className="skel" />
+        </div>
+      ) : null}
       {address && activity.isError ? <p className="error" style={{ marginTop: 8 }}>{t("home.activityError")}</p> : null}
       {address && activity.isSuccess && rows.length === 0 ? (
         <p className="note" style={{ marginTop: 8 }}>{t("home.activityEmpty")}</p>

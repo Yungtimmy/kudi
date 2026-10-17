@@ -619,6 +619,17 @@ a { color: var(--kola-green); }
   margin-bottom: 12px;
 }
 .note { font-size: 13px; line-height: 18px; color: rgba(35, 36, 107, 0.78); }
+.skel {
+  display: inline-block;
+  height: 0.85em;
+  width: 8ch;
+  border-radius: 8px;
+  background: rgba(35, 36, 107, 0.14);
+  vertical-align: -0.08em;
+}
+.skel.wide { width: 14ch; }
+.skel-stack { display: grid; gap: 8px; margin-top: 10px; }
+.hero-balance .skel { height: 0.72em; background: rgba(255, 246, 233, 0.45); }
 .todo {
   background: #fff4d6;
   border-radius: 12px;

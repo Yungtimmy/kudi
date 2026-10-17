@@ -1,25 +1,51 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import type { Address } from "viem";
-import { useAccount, useBalance, useReadContract, useReadContracts } from "wagmi";
+import { useAccount, useReadContracts } from "wagmi";
 import { borrowerOpsAbi, erc20Abi, interestRateAbi, troveManagerAbi, priceFeedAbi } from "@/lib/abi";
+import { ACTIVE_TROVE, previewRatioPct, wadToPct } from "@/lib/loan";
 import { CONTRACTS, MEZO_TESTNET } from "@/lib/mezo";
-import { ACTIVE_TROVE, wadToPct } from "@/lib/loan";
+import {
+  readCachedMcr,
+  readCachedPosition,
+  readCachedPrice,
+  writeCachedMcr,
+  writeCachedPosition,
+  writeCachedPrice,
+  type PositionCache,
+} from "@/lib/readCache";
+import { savedWalletAddress } from "@/lib/restoreWallet";
 
 const chainId = MEZO_TESTNET.chainId;
 
-export function useProtocol() {
-  const price = useReadContract({
-    address: CONTRACTS.PriceFeed,
-    abi: priceFeedAbi,
-    functionName: "fetchPrice",
-    chainId,
-    query: { refetchInterval: 30_000 },
-  });
+// One attempt. The transport itself gives up at 8s, so a stuck call cannot
+// stack into the old 10s × 3 retry and hold the cards for half a minute.
+const fastRead = { retry: false as const, staleTime: 10_000 };
 
-  const params = useReadContracts({
+function useReadAddress(watch?: Address): Address | undefined {
+  const account = useAccount();
+  const [saved] = useState<Address | undefined>(() => savedWalletAddress());
+  const sawConnected = useRef(false);
+  const [released, setReleased] = useState(false);
+  useEffect(() => {
+    if (account.status === "connected" && account.address) sawConnected.current = true;
+    if (sawConnected.current && account.status === "disconnected") setReleased(true);
+  }, [account.address, account.status]);
+  if (watch) return watch;
+  if (account.address) return account.address;
+  if (released) return undefined;
+  return saved;
+}
+
+export function useProtocol() {
+  const [seededPrice] = useState(() => readCachedPrice());
+  const [seededMcr] = useState(() => readCachedMcr());
+
+  const bundle = useReadContracts({
     allowFailure: true,
     contracts: [
+      { address: CONTRACTS.PriceFeed, abi: priceFeedAbi, functionName: "fetchPrice", chainId },
       { address: CONTRACTS.TroveManager, abi: troveManagerAbi, functionName: "MCR", chainId },
       { address: CONTRACTS.TroveManager, abi: troveManagerAbi, functionName: "CCR", chainId },
       { address: CONTRACTS.TroveManager, abi: troveManagerAbi, functionName: "MUSD_GAS_COMPENSATION", chainId },
@@ -27,51 +53,66 @@ export function useProtocol() {
       { address: CONTRACTS.BorrowerOperations, abi: borrowerOpsAbi, functionName: "borrowingRate", chainId },
       { address: CONTRACTS.InterestRateManager, abi: interestRateAbi, functionName: "interestRate", chainId },
     ],
-    query: { staleTime: 60_000 },
-  });
-
-  const p = price.data;
-  const tcr = useReadContract({
-    address: CONTRACTS.TroveManager,
-    abi: troveManagerAbi,
-    functionName: "getTCR",
-    args: [p ?? 0n],
-    chainId,
-    query: { enabled: p != null, refetchInterval: 30_000 },
-  });
-  const recoveryCall = useReadContract({
-    address: CONTRACTS.TroveManager,
-    abi: troveManagerAbi,
-    functionName: "checkRecoveryMode",
-    args: [p ?? 0n],
-    chainId,
-    query: { enabled: p != null, refetchInterval: 30_000 },
+    query: { ...fastRead, refetchInterval: 30_000 },
   });
 
   const read = <T,>(index: number): T | undefined => {
-    const row = params.data?.[index];
+    const row = bundle.data?.[index];
     if (!row || row.status !== "success") return undefined;
     return row.result as T;
   };
 
-  const mcr = read<bigint>(0);
-  const ccr = read<bigint>(1);
-  const interestRaw = read<number | bigint>(5);
-  const tcrWad = tcr.data;
+  const freshPrice = read<bigint>(0);
+  const price = freshPrice ?? seededPrice;
+  const freshMcr = read<bigint>(1);
+  const mcr = freshMcr ?? seededMcr;
+  // Cached price lets the ratio and recovery calls leave with the first paint
+  // instead of waiting for fetchPrice to return.
+  const quote = freshPrice ?? seededPrice;
+
+  const system = useReadContracts({
+    allowFailure: true,
+    contracts: [
+      { address: CONTRACTS.TroveManager, abi: troveManagerAbi, functionName: "getTCR", args: [quote ?? 0n], chainId },
+      { address: CONTRACTS.TroveManager, abi: troveManagerAbi, functionName: "checkRecoveryMode", args: [quote ?? 0n], chainId },
+    ],
+    query: {
+      ...fastRead,
+      enabled: quote != null,
+      refetchInterval: 30_000,
+    },
+  });
+
+  useEffect(() => {
+    if (freshPrice != null) writeCachedPrice(freshPrice);
+  }, [freshPrice]);
+  useEffect(() => {
+    if (freshMcr != null) writeCachedMcr(freshMcr);
+  }, [freshMcr]);
+
+  const systemCell = <T,>(index: number): T | undefined => {
+    const row = system.data?.[index];
+    if (!row || row.status !== "success") return undefined;
+    return row.result as T;
+  };
+
+  const ccr = read<bigint>(2);
+  const interestRaw = read<number | bigint>(6);
+  const tcrWad = systemCell<bigint>(0);
+  const recoveryFlag = systemCell<boolean>(1);
   const tcrPct = tcrWad == null ? undefined : wadToPct(tcrWad);
   const ccrPct = ccr == null ? undefined : wadToPct(ccr);
-  const recovery =
-    recoveryCall.data === true || (tcrPct != null && ccrPct != null && tcrPct < ccrPct);
+  const recovery = recoveryFlag === true || (tcrPct != null && ccrPct != null && tcrPct < ccrPct);
 
   return {
-    price: p,
-    priceLoading: price.isPending,
-    priceError: price.isError,
+    price,
+    priceLoading: bundle.isPending && price == null,
+    priceError: bundle.isError && price == null,
     mcr,
     ccr,
-    gas: read<bigint>(2),
-    minDebt: read<bigint>(3),
-    borrowRate: read<bigint>(4),
+    gas: read<bigint>(3),
+    minDebt: read<bigint>(4),
+    borrowRate: read<bigint>(5),
     interestPct: interestRaw == null ? undefined : Number(interestRaw) / 100,
     mcrPct: mcr == null ? undefined : wadToPct(mcr),
     ccrPct,
@@ -83,75 +124,93 @@ export function useProtocol() {
 /** Balances and trove for `watch`, or for the connected wallet when `watch` is omitted. */
 export function usePosition(watch?: Address) {
   const account = useAccount();
-  const address = watch ?? account.address;
+  const address = useReadAddress(watch);
   const protocol = useProtocol();
   const price = protocol.price;
+  const [cached] = useState<PositionCache | null>(() => {
+    const initial = watch ?? savedWalletAddress();
+    return initial ? readCachedPosition(initial) : null;
+  });
+  const remembered = cached && address && cached.address.toLowerCase() === address.toLowerCase() ? cached : null;
 
-  const btc = useBalance({
-    address,
-    chainId,
-    query: {
-      enabled: Boolean(address),
-      refetchInterval: (query) => (query.state.data?.value === 0n ? 8_000 : 20_000),
-    },
-  });
-  const musd = useReadContract({
-    address: CONTRACTS.MUSD,
-    abi: erc20Abi,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
-    chainId,
-    query: { enabled: Boolean(address), refetchInterval: 20_000 },
-  });
-  const trove = useReadContracts({
+  const position = useReadContracts({
     allowFailure: true,
     contracts: address
       ? [
+          { address: CONTRACTS.BTC, abi: erc20Abi, functionName: "balanceOf", args: [address], chainId },
+          { address: CONTRACTS.MUSD, abi: erc20Abi, functionName: "balanceOf", args: [address], chainId },
           { address: CONTRACTS.TroveManager, abi: troveManagerAbi, functionName: "getTroveStatus", args: [address], chainId },
           { address: CONTRACTS.TroveManager, abi: troveManagerAbi, functionName: "getTroveColl", args: [address], chainId },
           { address: CONTRACTS.TroveManager, abi: troveManagerAbi, functionName: "getTroveDebt", args: [address], chainId },
-          {
-            address: CONTRACTS.TroveManager,
-            abi: troveManagerAbi,
-            functionName: "getCurrentICR",
-            args: [address, price ?? 0n],
-            chainId,
-          },
         ]
       : [],
-    query: { enabled: Boolean(address && price), refetchInterval: 20_000 },
+    query: {
+      ...fastRead,
+      enabled: Boolean(address),
+      refetchInterval: (query) => {
+        const row = query.state.data?.[0];
+        return row?.status === "success" && row.result === 0n ? 8_000 : 20_000;
+      },
+    },
   });
 
   const cell = <T,>(index: number): T | undefined => {
-    const row = trove.data?.[index];
+    const row = position.data?.[index];
     if (!row || row.status !== "success") return undefined;
     return row.result as T;
   };
 
-  const status = cell<number>(0);
-  const active = status === ACTIVE_TROVE;
-  const coll = active ? cell<bigint>(1) : undefined;
-  const debt = active ? cell<bigint>(2) : undefined;
-  const icr = active ? cell<bigint>(3) : undefined;
+  const btcLive = cell<bigint>(0);
+  const musdLive = cell<bigint>(1);
+  const status = cell<number | bigint>(2);
+  const collLive = cell<bigint>(3);
+  const debtLive = cell<bigint>(4);
+  const liveKnown = position.isSuccess && status != null;
+  const active = status != null && Number(status) === ACTIVE_TROVE;
 
-  const troveWaiting = !protocol.priceError && (price == null || trove.isPending);
+  useEffect(() => {
+    if (!address || !liveKnown || btcLive == null || musdLive == null) return;
+    writeCachedPosition({
+      address,
+      btc: btcLive,
+      musd: musdLive,
+      active,
+      coll: active ? collLive : undefined,
+      debt: active ? debtLive : undefined,
+    });
+  }, [address, liveKnown, btcLive, musdLive, active, collLive, debtLive]);
+
+  const loanState: "unknown" | "active" | "none" = liveKnown
+    ? active
+      ? "active"
+      : "none"
+    : remembered
+      ? remembered.active
+        ? "active"
+        : "none"
+      : "unknown";
+  const coll = liveKnown ? (active ? collLive : undefined) : remembered?.active ? remembered.coll : undefined;
+  const debt = liveKnown ? (active ? debtLive : undefined) : remembered?.active ? remembered.debt : undefined;
+  const btc = btcLive ?? remembered?.btc;
+  const musd = musdLive ?? remembered?.musd;
+  const ratioPct = coll != null && debt != null && price != null ? previewRatioPct(coll, price, debt) ?? undefined : undefined;
 
   return {
     address,
     isConnected: account.isConnected,
     watching: watch != null,
     protocol,
-    btc: btc.data?.value,
-    musd: musd.data,
+    btc,
+    musd,
     coll,
     debt,
-    /** TroveManager.getCurrentICR. Debt includes the gas reserve, so this is not a principal-only ratio. */
-    ratioPct: icr == null ? undefined : wadToPct(icr),
-    loading: Boolean(address) && (btc.isPending || musd.isPending || troveWaiting),
+    /** Collateral ratio from coll, debt, and price. Debt includes the gas reserve. */
+    ratioPct,
+    loanState,
+    readsSettled: !address || position.isFetched || position.isError,
+    loading: Boolean(address) && loanState === "unknown" && btc == null && musd == null && !position.isError,
     refetch() {
-      void btc.refetch();
-      void musd.refetch();
-      void trove.refetch();
+      void position.refetch();
     },
   };
 }

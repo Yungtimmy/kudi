@@ -1,4 +1,4 @@
-import type { Address } from "viem";
+import { getAddress, type Address } from "viem";
 import type { Connector, Config } from "wagmi";
 import { reconnect } from "wagmi/actions";
 
@@ -73,6 +73,34 @@ export async function rememberPersistedSessions(config: Config) {
   rememberLocalSessions();
   const stored = await config.storage?.getItem("store");
   if (stored) rememberParsedStore(stored);
+}
+
+function readRecentConnectorId(): string | undefined {
+  if (typeof localStorage === "undefined") return undefined;
+  const raw = localStorage.getItem("wagmi.recentConnectorId");
+  if (!raw || raw === "null" || raw === "undefined") return undefined;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return typeof parsed === "string" && parsed ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Last safe address wagmi saved for the recent connector.
+ * Readable on the first paint, before reconnect restores the live account.
+ */
+export function savedWalletAddress(): Address | undefined {
+  rememberLocalSessions();
+  const recent = readRecentConnectorId();
+  const account = recent ? snapshots.get(recent)?.accounts[0] : undefined;
+  if (!account) return undefined;
+  try {
+    return getAddress(account);
+  } catch {
+    return undefined;
+  }
 }
 
 /** Last accounts wagmi saved for this connector. Empty UniSat getAccounts cannot supply these. */
