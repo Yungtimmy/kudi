@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { PassportConnect } from "@/components/PassportConnect";
 import { useAccount, useConfig, usePublicClient, useSwitchChain } from "wagmi";
 import { HealthBar } from "@/components/HealthBar";
 import { SideSummary } from "@/components/SideSummary";
@@ -278,15 +278,7 @@ function AdjustLoan() {
           <span className="end"><ArrowIcon width={18} height={18} /></span>
         </button>
       ) : (
-        <ConnectButton.Custom>
-          {({ openConnectModal }) => (
-            <button className="btn" type="button" onClick={openConnectModal}>
-              <span />
-              <span>{t("landing.connect")}</span>
-              <span className="end"><ArrowIcon width={18} height={18} /></span>
-            </button>
-          )}
-        </ConnectButton.Custom>
+        <PassportConnect end={<span className="end"><ArrowIcon width={18} height={18} /></span>} />
       )}
 
       <div className="foot">

@@ -3,12 +3,14 @@
 import type { Address } from "viem";
 import { useFx } from "@/hooks/useFx";
 import { useActivity } from "@/hooks/useActivity";
+import { useReconnectPending } from "@/hooks/useReconnectPending";
 import { useI18n } from "@/i18n/I18nProvider";
 import { formatMusd, formatNaira, formatWhen, musdToNaira } from "@/lib/format";
 import { shortAddr, txUrl } from "@/lib/mezo";
 
 export function ActivityCard({ address }: { address?: Address }) {
   const { t } = useI18n();
+  const reconnecting = useReconnectPending();
   const fx = useFx();
   const activity = useActivity(address);
   const rows = activity.data ?? [];
@@ -16,7 +18,7 @@ export function ActivityCard({ address }: { address?: Address }) {
   return (
     <section className="card activity-card wide-only">
       <h3>{t("home.activity")}</h3>
-      {!address ? <p className="note" style={{ marginTop: 8 }}>{t("home.activityConnect")}</p> : null}
+      {!address ? <p className="note" style={{ marginTop: 8 }}>{reconnecting ? t("wallet.reconnecting") : t("home.activityConnect")}</p> : null}
       {address && activity.isPending ? <p className="note" style={{ marginTop: 8 }}>{t("common.loading")}</p> : null}
       {address && activity.isError ? <p className="error" style={{ marginTop: 8 }}>{t("home.activityError")}</p> : null}
       {address && activity.isSuccess && rows.length === 0 ? (

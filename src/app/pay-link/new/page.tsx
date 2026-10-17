@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
+import { PassportConnect } from "@/components/PassportConnect";
+import { useReconnectPending } from "@/hooks/useReconnectPending";
 import { BottomWave, CopyIcon, EnvelopeArt } from "@/components/Illustrations";
 import { SideSummary } from "@/components/SideSummary";
 import { RateLine } from "@/components/RateLine";
@@ -15,6 +16,7 @@ export default function CreatePayLink() {
   const { t } = useI18n();
   const fx = useFx();
   const { address, isConnected } = useAccount();
+  const reconnecting = useReconnectPending();
   const [amountText, setAmountText] = useState("50");
   const [name, setName] = useState("");
   const [note, setNote] = useState("");
@@ -75,7 +77,7 @@ export default function CreatePayLink() {
 
       <section className="share-card">
         <h3>{t("paylink.share")}</h3>
-        {!isConnected ? <p className="note" style={{ margin: "8px 0" }}>{t("paylink.needWallet")}</p> : null}
+        {!isConnected && !reconnecting ? <p className="note" style={{ margin: "8px 0" }}>{t("paylink.needWallet")}</p> : null}
         {amount != null && amount <= 0n ? <p className="note">{t("paylink.badAmount")}</p> : null}
         <div className="btn-row" style={{ marginTop: 12 }}>
           {isConnected ? (
@@ -85,15 +87,7 @@ export default function CreatePayLink() {
               <span />
             </a>
           ) : (
-            <ConnectButton.Custom>
-              {({ openConnectModal }) => (
-                <button className="btn" type="button" onClick={openConnectModal}>
-                  <span />
-                  <span>{t("landing.connect")}</span>
-                  <span />
-                </button>
-              )}
-            </ConnectButton.Custom>
+            <PassportConnect />
           )}
           <button className="btn outline" type="button" disabled={!url} onClick={copy}>
             <CopyIcon width={18} height={18} />

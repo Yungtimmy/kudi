@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { PassportConnect } from "@/components/PassportConnect";
 import { useAccount, useConfig, usePublicClient, useReadContract, useSwitchChain } from "wagmi";
 import { SideSummary } from "@/components/SideSummary";
 import { ArrowIcon, BtcMark, ShieldIcon } from "@/components/Illustrations";
@@ -293,15 +293,7 @@ export function GuidedLoan() {
             <span className="end"><ArrowIcon width={18} height={18} /></span>
           </button>
         ) : (
-          <ConnectButton.Custom>
-            {({ openConnectModal }) => (
-              <button className="btn" type="button" onClick={openConnectModal}>
-                <span />
-                <span>{t("landing.connect")}</span>
-                <span className="end"><ArrowIcon width={18} height={18} /></span>
-              </button>
-            )}
-          </ConnectButton.Custom>
+          <PassportConnect end={<span className="end"><ArrowIcon width={18} height={18} /></span>} />
         )}
         <div className="foot">
           <span><ShieldIcon width={14} height={14} /> {t("common.nonCustodial")}</span>

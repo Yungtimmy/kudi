@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { PassportConnect } from "@/components/PassportConnect";
 import { useAccount, useConfig, usePublicClient, useReadContract, useSwitchChain } from "wagmi";
 import { BtcMark, CoinsArt } from "@/components/Illustrations";
 import { SideSummary } from "@/components/SideSummary";
@@ -174,15 +174,7 @@ export default function SwapPage() {
           <span />
         </button>
       ) : (
-        <ConnectButton.Custom>
-          {({ openConnectModal }) => (
-            <button className="btn" type="button" onClick={openConnectModal}>
-              <span />
-              <span>{t("landing.connect")}</span>
-              <span />
-            </button>
-          )}
-        </ConnectButton.Custom>
+        <PassportConnect />
       )}
       </div>
       <SideSummary

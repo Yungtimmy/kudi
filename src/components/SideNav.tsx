@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useReconnectPending } from "@/hooks/useReconnectPending";
 import { useI18n } from "@/i18n/I18nProvider";
 import { parseViewAddress, shortAddr, viewAddr } from "@/lib/mezo";
 import { LanguageToggle } from "./LanguageToggle";
@@ -37,6 +38,7 @@ export function TopNav() {
 
 export function Sidebar() {
   const { t } = useI18n();
+  const reconnecting = useReconnectPending();
   const view = parseViewAddress(useSearchParams().get("address"));
   return (
     <aside className="sidebar">
@@ -53,13 +55,13 @@ export function Sidebar() {
         ) : null}
         <ConnectButton.Custom>
           {({ account, openAccountModal, openConnectModal, mounted }) => {
-            const label = !mounted ? "" : account ? shortAddr(account.address) : t("account.connect");
+            const label = reconnecting ? t("wallet.reconnecting") : !mounted ? "" : account ? shortAddr(account.address) : t("account.connect");
             return (
               <button
                 type="button"
                 className="sidebar-wallet"
-                disabled={!mounted}
-                onClick={account ? openAccountModal : openConnectModal}
+                disabled={!mounted || reconnecting}
+                onClick={account && !reconnecting ? openAccountModal : openConnectModal}
               >
                 <WalletIcon width={16} height={16} />
                 <span>{label}</span>

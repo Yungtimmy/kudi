@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { PassportConnect } from "@/components/PassportConnect";
 import { useAccount, usePublicClient, useSwitchChain, useWriteContract } from "wagmi";
 import { AddressRow } from "@/components/AddressRow";
 import { ArrowIcon, BridgeScene, BtcMark, ShieldIcon } from "@/components/Illustrations";
@@ -105,15 +105,7 @@ export function Payer() {
             <span className="end"><ArrowIcon width={18} height={18} /></span>
           </button>
         ) : (
-          <ConnectButton.Custom>
-            {({ openConnectModal }) => (
-              <button className="btn" type="button" onClick={openConnectModal}>
-                <span />
-                <span>{t("landing.connect")}</span>
-                <span className="end"><ArrowIcon width={18} height={18} /></span>
-              </button>
-            )}
-          </ConnectButton.Custom>
+          <PassportConnect end={<span className="end"><ArrowIcon width={18} height={18} /></span>} />
         )}
       </div>
     </main>
