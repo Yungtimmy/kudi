@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from "wagmi";
+import { useAccount, useConfig, usePublicClient, useReadContract, useSwitchChain } from "wagmi";
 import { SideSummary } from "@/components/SideSummary";
 import { ArrowIcon, BtcMark, ShieldIcon } from "@/components/Illustrations";
 import { RateLine } from "@/components/RateLine";
@@ -11,6 +11,8 @@ import { useFx } from "@/hooks/useFx";
 import { usePosition } from "@/hooks/useMezo";
 import { useI18n } from "@/i18n/I18nProvider";
 import { borrowerOpsAbi } from "@/lib/abi";
+import { ensureBitcoinAccount, WalletNotConnectedError } from "@/lib/bitcoinWallet";
+import { sendContractWrite } from "@/lib/walletWrite";
 import { CONTRACTS, MEZO_TESTNET, txUrl } from "@/lib/mezo";
 import {
   formatBtc,
@@ -52,9 +54,9 @@ export function GuidedLoan() {
   const { t } = useI18n();
   const fx = useFx();
   const { address, isConnected, btc, protocol, refetch } = usePosition();
-  const { chainId } = useAccount();
+  const { chainId, connector } = useAccount();
+  const config = useConfig();
   const publicClient = usePublicClient({ chainId: MEZO_TESTNET.chainId });
-  const { writeContractAsync } = useWriteContract();
   const { switchChainAsync } = useSwitchChain();
 
   const [unit, setUnit] = useState<"musd" | "ngn">("musd");
@@ -127,19 +129,20 @@ export function GuidedLoan() {
   }
 
   async function confirm() {
-    if (!address || !publicClient || !ready || !collWei || !musdWad || short) return;
+    if (!publicClient || !ready || !collWei || !musdWad || short) return;
     setError("");
     setPhase("wallet");
     try {
+      if (!address) throw new WalletNotConnectedError();
+      await ensureBitcoinAccount(connector);
       if (chainId !== MEZO_TESTNET.chainId) await switchChainAsync({ chainId: MEZO_TESTNET.chainId });
       const hints = await findTroveHints(publicClient, collWei, debtForColl);
-      const hash = await writeContractAsync({
+      const hash = await sendContractWrite(config, connector, address, {
         address: CONTRACTS.BorrowerOperations,
         abi: borrowerOpsAbi,
         functionName: "openTrove",
         args: [musdWad, hints.upper, hints.lower],
         value: collWei,
-        chainId: MEZO_TESTNET.chainId,
       });
       setPhase("chain");
       setTx(hash);
@@ -148,7 +151,7 @@ export function GuidedLoan() {
       setPhase("done");
       refetch();
     } catch (err) {
-      setError(txMessage(err, t("common.closed")));
+      setError(err instanceof WalletNotConnectedError ? t("wallet.connectFirst") : txMessage(err, t("common.closed")));
       setPhase("idle");
     }
   }
