@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useAccount } from "wagmi";
+import { PassportConnect } from "@/components/PassportConnect";
 import { Adire, BridgeScene, BtcMark, MezoMark } from "@/components/Illustrations";
 import { RateLine } from "@/components/RateLine";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -28,15 +28,7 @@ export default function Landing() {
           <span />
         </Link>
       ) : (
-        <ConnectButton.Custom>
-          {({ openConnectModal, mounted }) => (
-            <button className="btn" type="button" disabled={!mounted} onClick={openConnectModal}>
-              <MezoMark />
-              <span>{t("landing.connect")}</span>
-              <span />
-            </button>
-          )}
-        </ConnectButton.Custom>
+        <PassportConnect icon={<MezoMark />} />
       )}
       <RateLine tone="pill" />
     </main>

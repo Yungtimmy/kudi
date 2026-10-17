@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { PassportConnect } from "@/components/PassportConnect";
 import { isAddress } from "viem";
 import { useAccount, usePublicClient, useSwitchChain, useWriteContract } from "wagmi";
 import { ArrowIcon, ShieldIcon } from "@/components/Illustrations";
@@ -103,15 +103,7 @@ export default function SendPage() {
           <span className="end"><ArrowIcon width={18} height={18} /></span>
         </button>
       ) : (
-        <ConnectButton.Custom>
-          {({ openConnectModal }) => (
-            <button className="btn" type="button" onClick={openConnectModal}>
-              <span />
-              <span>{t("landing.connect")}</span>
-              <span />
-            </button>
-          )}
-        </ConnectButton.Custom>
+        <PassportConnect />
       )}
       </div>
       <SideSummary

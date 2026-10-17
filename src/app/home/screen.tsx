@@ -9,6 +9,7 @@ import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { BottomWave, BtcMark, LinkIcon, PlantArt, SendIcon, ShieldIcon, SwapIcon, WalletIcon } from "@/components/Illustrations";
 import { useFx } from "@/hooks/useFx";
 import { usePosition } from "@/hooks/useMezo";
+import { useReconnectPending } from "@/hooks/useReconnectPending";
 import { useI18n } from "@/i18n/I18nProvider";
 import { loanHealth } from "@/lib/health";
 import { btcToNaira, formatBtc, formatMusd, formatNaira, formatUsd, musdToNaira, WAD } from "@/lib/format";
@@ -24,6 +25,7 @@ const actions = [
 
 export function HomeScreen() {
   const { t } = useI18n();
+  const reconnecting = useReconnectPending();
   const fx = useFx();
   const view = parseViewAddress(useSearchParams().get("address"));
   const { address, isConnected, watching, musd, btc, coll, debt, ratioPct, protocol, loading, refetch } = usePosition(view.address);
@@ -144,7 +146,7 @@ export function HomeScreen() {
           <div style={{ marginTop: 8 }}>
             <strong>{show ? (loading ? "…" : t("home.noLoan")) : "—"}</strong>
             <p className="note" style={{ marginTop: 4 }}>
-              {show ? (loading ? t("common.loading") : t("home.noLoanBody")) : t("home.connect")}
+              {show ? (loading ? t("common.loading") : t("home.noLoanBody")) : reconnecting ? t("wallet.reconnecting") : t("home.connect")}
             </p>
           </div>
         )}
