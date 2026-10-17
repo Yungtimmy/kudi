@@ -1,15 +1,16 @@
 "use client";
 
 import { useI18n } from "@/i18n/I18nProvider";
-import { formatHm, formatHmLagos, formatNaira } from "@/lib/format";
+import { formatHmLagos, formatNaira } from "@/lib/format";
 import { useFx } from "@/hooks/useFx";
 import { BoltIcon, ClockIcon } from "./Illustrations";
 
-export function RateLine({ tone = "plain", stamp = "asOf" }: { tone?: "plain" | "on-green" | "pill"; stamp?: "asOf" | "naira" }) {
+/** Naira rate line. The time is when the feed last updated, always shown in WAT. */
+export function RateLine({ tone = "plain" }: { tone?: "plain" | "on-green" | "pill" }) {
   const { t } = useI18n();
   const fx = useFx();
-  const time = fx.loading ? "--:--" : stamp === "naira" ? formatHmLagos(fx.asOf) : formatHm(fx.asOf);
-  const label = t(stamp === "naira" ? "rate.nairaUpdated" : "rate.asOf", { time });
+  const time = fx.loading ? "--:--" : formatHmLagos(fx.asOf);
+  const label = t("rate.nairaUpdated", { time });
   if (tone === "pill") {
     return (
       <p className={`rate-pill ${fx.source === "fallback" && !fx.loading ? "is-backup" : ""}`}>

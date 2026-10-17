@@ -156,7 +156,7 @@ export default function SwapPage() {
         <div className="quote-box">
           <div>{perBtc != null ? t("swap.rate", { amount: formatMusd(perBtc, 0) }) : t("swap.quoting")}</div>
           {quoteAge ? <div className="quote-fresh">{quoteAge}</div> : null}
-          <RateLine stamp="naira" />
+          <RateLine />
         </div>
       </section>
 
