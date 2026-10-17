@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { FALLBACK_NGN_PER_USD, type FxQuote } from "@/lib/fx";
+import { FALLBACK_NGN_PER_USD, FX_CACHE_MS, type FxQuote } from "@/lib/fx";
 
 export function useFx() {
   const query = useQuery({
@@ -13,7 +13,8 @@ export function useFx() {
       if (!Number.isFinite(data.ngnPerUsd) || data.ngnPerUsd <= 0) throw new Error("fx");
       return data;
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: FX_CACHE_MS,
+    refetchInterval: FX_CACHE_MS,
     retry: 1,
   });
 
@@ -23,6 +24,7 @@ export function useFx() {
       ngnPerUsd: FALLBACK_NGN_PER_USD,
       asOf: new Date().toISOString(),
       source: "fallback" as const,
+      provider: "fixed" as const,
       loading: false,
     };
   }
@@ -30,6 +32,7 @@ export function useFx() {
     ngnPerUsd: FALLBACK_NGN_PER_USD,
     asOf: new Date().toISOString(),
     source: "fallback" as const,
+    provider: "fixed" as const,
     loading: true,
   };
 }
