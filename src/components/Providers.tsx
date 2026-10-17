@@ -8,6 +8,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import { I18nProvider } from "@/i18n/I18nProvider";
 import { MEZO_TESTNET } from "@/lib/mezo";
 import { allowSilentBitcoinReconnect, reconnectLastWallet } from "@/lib/restoreWallet";
+import { installMezoRelayFetch } from "@/lib/mezoRelay";
+
+// Passport's relay calls are blocked by CORS; send them through /api/mezo-relay.
+installMezoRelayFetch();
 
 // The app shell is client-only, so there is no server HTML to seed from a cookie.
 // ssr: true still matters: wagmi waits to rehydrate this localStorage before reconnect,
