@@ -492,6 +492,7 @@ a { color: var(--kola-green); }
   font-size: 14px;
   font-weight: 600;
 }
+.quote-fresh { margin-top: 2px; font-size: 13px; font-weight: 500; line-height: 18px; }
 
 .request {
   position: relative;

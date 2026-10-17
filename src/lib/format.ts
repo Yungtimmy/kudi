@@ -85,11 +85,26 @@ export function wholeToWad(whole: number): bigint {
   return BigInt(Math.floor(whole)) * WAD;
 }
 
-/** Clock time as h:mm, matching the "rate as of 11:20" label. */
+/** Clock time as hh:mm in the viewer’s local zone. */
 export function formatHm(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "--:--";
   return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+}
+
+/** Clock time as hh:mm in Africa/Lagos, where the naira label is read. */
+export function formatHmLagos(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "--:--";
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Africa/Lagos",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(d);
+  const hour = parts.find((part) => part.type === "hour")?.value ?? "--";
+  const minute = parts.find((part) => part.type === "minute")?.value ?? "--";
+  return `${hour}:${minute}`;
 }
 
 export function formatWhen(unixSeconds: number): string {
