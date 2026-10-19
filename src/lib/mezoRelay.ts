@@ -5,14 +5,29 @@
 // The relay has no CORS headers, so the browser blocks those calls. We send
 // them to /api/mezo-relay/* on our own server, which forwards them to Mezo.
 
-export const MEZO_RELAY_UPSTREAM = "https://test.mezo.org/api/v2/relay/";
+// Mezo says test.mezo.org is outdated (Cloudflare error 1000); the live relay
+// is testnet.mezo.org. Passport still emits the old host, so the browser shim
+// catches both hosts and the server forwards to MEZO_RELAY_UPSTREAM.
+const DEFAULT_RELAY = "https://testnet.mezo.org/api/v2/relay";
+const withSlash = (u: string) => (u.endsWith("/") ? u : `${u}/`);
+export const MEZO_RELAY_UPSTREAM = withSlash(
+  process.env.NEXT_PUBLIC_MEZO_RELAY_URL || DEFAULT_RELAY,
+);
+const INTERCEPTED_PREFIXES = Array.from(
+  new Set([
+    "https://test.mezo.org/api/v2/relay/",
+    withSlash(DEFAULT_RELAY),
+    MEZO_RELAY_UPSTREAM,
+  ]),
+);
 export const MEZO_RELAY_PATHS = ["deploy-safe", "transactions"] as const;
 const LOCAL_PREFIX = "/api/mezo-relay/";
 
 /** Returns the local proxy URL for a Mezo testnet relay URL, or null for anything else. */
 export function toLocalRelayUrl(url: string): string | null {
-  if (!url.startsWith(MEZO_RELAY_UPSTREAM)) return null;
-  const rest = url.slice(MEZO_RELAY_UPSTREAM.length).split(/[?#]/)[0];
+  const prefix = INTERCEPTED_PREFIXES.find((p) => url.startsWith(p));
+  if (!prefix) return null;
+  const rest = url.slice(prefix.length).split(/[?#]/)[0];
   if (!(MEZO_RELAY_PATHS as readonly string[]).includes(rest)) return null;
   return `${LOCAL_PREFIX}${rest}`;
 }
