@@ -7,6 +7,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { shortAddr } from "@/lib/mezo";
 import { LanguageToggle } from "./LanguageToggle";
 import { WalletIcon } from "./Illustrations";
+import { InstallLink } from "./InstallCard";
 
 export function Header() {
   const { t } = useI18n();
@@ -17,6 +18,7 @@ export function Header() {
         kud<span className="logo-i">i</span>
       </Link>
       <div className="cluster">
+        <InstallLink />
         <LanguageToggle />
         <span className="testnet"><i />{t("app.testnet")}</span>
         <ConnectButton.Custom>
