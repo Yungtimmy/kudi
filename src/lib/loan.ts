@@ -24,6 +24,8 @@ export function previewDebt(opts: {
 
 /** Safe opening target. 200% sits above the 150% Safe line. */
 export const SAFE_ICR_PCT = 200;
+/** BTC kept back in the wallet for the network fee (0.0001 BTC). */
+export const BTC_FEE_RESERVE = 10n ** 14n;
 export const GUIDE_MAX_ICR_PCT = 300;
 
 /** BTC (18 decimals) that places `debt` at `ratioPct` for this BTC price. */

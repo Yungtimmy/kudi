@@ -169,5 +169,19 @@
   "account.connect": "Connect",
   "install.card": "Add Kudi to your home screen",
   "install.cardIos": "Tap Share, then Add to Home Screen",
-  "install.dismiss": "Dismiss"
+  "install.dismiss": "Dismiss",
+  "borrow.addForMin": "Add more BTC to borrow. The minimum loan is {amount} MUSD.",
+  "borrow.feeRoom": "Leave a little BTC in your wallet for the network fee.",
+  "tx.minDebt": "Add more BTC to borrow. The minimum loan is {amount} MUSD.",
+  "tx.lowRatio": "This loan needs more BTC to stay safe. Add BTC or borrow less.",
+  "tx.funds": "Not enough BTC in your wallet for this deposit and the network fee.",
+  "tx.badParams": "Your wallet couldn't read this request. Check you're on Mezo testnet and try again.",
+  "swap.flip": "Flip BTC and MUSD",
+  "swap.titleBack": "Swap MUSD to BTC",
+  "swap.actionBack": "Swap MUSD to BTC",
+  "swap.approveMusd": "Approve MUSD",
+  "swap.rateBack": "Rate: 1 MUSD = {amount} BTC",
+  "swap.needMusd": "Enter how much MUSD to swap.",
+  "swap.fundsMusd": "Your MUSD balance does not cover this swap.",
+  "swap.feeBtc": "Keep a little BTC for the network fee."
 }

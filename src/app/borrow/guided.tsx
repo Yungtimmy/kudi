@@ -28,6 +28,7 @@ import {
 import { loanHealth } from "@/lib/health";
 import { findTroveHints } from "@/lib/hints";
 import {
+  BTC_FEE_RESERVE,
   GUIDE_MAX_ICR_PCT,
   SAFE_ICR_PCT,
   borrowingFee,
@@ -96,7 +97,12 @@ export function GuidedLoan() {
   const liq = collWei && mcr > 0n && debtForColl > 0n ? liquidationPrice(debtForColl, collWei, mcr) : null;
   const belowMin = musdWad != null && musdWad > 0n && musdWad < minDebt;
   const ready = musdWad != null && musdWad >= minDebt && price > 0n && feeReady && collWei != null && collWei > 0n;
-  const short = isConnected && btc != null && collWei != null && btc < collWei;
+  const short = isConnected && btc != null && collWei != null && btc < collWei + BTC_FEE_RESERVE;
+  // Largest debt the wallet's BTC can carry at the chosen ratio, after the fee reserve.
+  const walletCap = btc != null && price > 0n && pct > 0
+    ? ((btc > BTC_FEE_RESERVE ? btc - BTC_FEE_RESERVE : 0n) * price) / (BigInt(Math.round(pct * 100)) * (WAD / 10000n))
+    : null;
+  const cantReachMin = isConnected && walletCap != null && walletCap < minDebt + gas;
   const musdNaira = !fx.loading && musdWad != null && musdWad > 0n ? formatNaira(musdToNaira(musdWad, fx.ngnPerUsd)) : null;
   const totalNaira = !fx.loading && debtForColl > 0n ? formatNaira(musdToNaira(debtForColl, fx.ngnPerUsd)) : null;
   const liqNaira = !fx.loading && liq != null ? formatNaira(musdToNaira(liq, fx.ngnPerUsd)) : null;
@@ -129,7 +135,7 @@ export function GuidedLoan() {
   }
 
   async function confirm() {
-    if (!publicClient || !ready || !collWei || !musdWad || short) return;
+    if (!publicClient || !ready || !collWei || !musdWad || short || cantReachMin) return;
     setError("");
     setPhase("wallet");
     try {
@@ -151,7 +157,7 @@ export function GuidedLoan() {
       setPhase("done");
       refetch();
     } catch (err) {
-      setError(err instanceof WalletNotConnectedError ? t("wallet.connectFirst") : txMessage(err, t("common.closed")));
+      setError(err instanceof WalletNotConnectedError ? t("wallet.connectFirst") : txMessage(err, t("common.closed"), t));
       setPhase("idle");
     }
   }
@@ -278,7 +284,9 @@ export function GuidedLoan() {
         ) : null}
 
         {!price && !protocol.priceError ? <p className="note" style={{ marginBottom: 8 }}>{t("common.loading")}</p> : null}
-        {short && collWei ? (
+        {cantReachMin ? (
+          <p className="note" style={{ marginBottom: 8 }}>{t("borrow.addForMin", { amount: formatMusd(minDebt, 0) })}</p>
+        ) : short && collWei ? (
           <p className="note" style={{ marginBottom: 8 }}>{t("guide.shortBtc", { have: formatBtc(btc ?? 0n), need: formatBtc(collWei) })}</p>
         ) : null}
         {error ? <p className="error" style={{ marginBottom: 8 }}>{error}</p> : null}
@@ -287,7 +295,7 @@ export function GuidedLoan() {
         ) : null}
 
         {isConnected ? (
-          <button className="btn" type="button" disabled={!ready || short || busy} onClick={confirm}>
+          <button className="btn" type="button" disabled={!ready || short || cantReachMin || busy} onClick={confirm}>
             <span />
             <span>{busy ? (phase === "chain" ? t("borrow.sent") : t("borrow.pending")) : t("borrow.confirm")}</span>
             <span className="end"><ArrowIcon width={18} height={18} /></span>

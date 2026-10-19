@@ -47,6 +47,15 @@ export const btcToMusdRoute = (): Route[] => [
   },
 ];
 
+export const musdToBtcRoute = (): Route[] => [
+  {
+    from: CONTRACTS.MUSD,
+    to: CONTRACTS.BTC,
+    stable: false,
+    factory: CONTRACTS.PoolFactory,
+  },
+];
+
 export const txUrl = (hash: string) => `${MEZO_TESTNET.explorer}/tx/${hash}`;
 
 export const shortAddr = (a: string) => {

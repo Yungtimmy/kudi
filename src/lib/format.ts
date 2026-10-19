@@ -117,13 +117,24 @@ export function formatWhen(unixSeconds: number): string {
   return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} • ${h12}:${min} ${ampm}`;
 }
 
-export function txMessage(error: unknown, closed: string): string {
+type Translate = (key: string, vars?: Record<string, string | number>) => string;
+
+/** Plain-language wallet/contract errors. Pass `t` for Pidgin; English is the fallback. */
+export function txMessage(error: unknown, closed: string, t?: Translate): string {
   const raw =
     error && typeof error === "object" && "shortMessage" in error
       ? String((error as { shortMessage?: string }).shortMessage)
       : error instanceof Error
         ? error.message
         : "Transaction failed";
+  const say = (key: string, en: string, vars?: Record<string, string | number>) => (t ? t(key, vars) : en);
   if (/user rejected|user denied|rejected the request/i.test(raw)) return closed;
+  if (/net debt must be greater than minimum/i.test(raw))
+    return say("tx.minDebt", "Add more BTC to borrow. The minimum loan is 1,800 MUSD.", { amount: "1,800" });
+  if (/ICR < MCR|CCR|collateral ratio/i.test(raw)) return say("tx.lowRatio", "This loan needs more BTC to stay safe. Add BTC or borrow less.");
+  if (/insufficient funds|exceeds balance/i.test(raw))
+    return say("tx.funds", "Not enough BTC in your wallet for this deposit and the network fee.");
+  if (/missing or invalid parameters|invalid params|-32602/i.test(raw))
+    return say("tx.badParams", "Your wallet couldn't read this request. Check you're on Mezo testnet and try again.");
   return raw.length > 220 ? `${raw.slice(0, 220)}…` : raw;
 }
