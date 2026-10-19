@@ -12,24 +12,28 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { erc20Abi, routerAbi } from "@/lib/abi";
 import { ensureBitcoinAccount, WalletNotConnectedError } from "@/lib/bitcoinWallet";
 import { sendContractWrite } from "@/lib/walletWrite";
-import { btcToMusdRoute, CONTRACTS, MEZO_TESTNET, txUrl } from "@/lib/mezo";
+import { btcToMusdRoute, musdToBtcRoute, CONTRACTS, MEZO_TESTNET, txUrl } from "@/lib/mezo";
+import { BTC_FEE_RESERVE } from "@/lib/loan";
 import { formatBtc, formatMusd, formatNaira, musdToNaira, parseAmount, txMessage, WAD } from "@/lib/format";
 
 export default function SwapPage() {
   const { t } = useI18n();
   const fx = useFx();
-  const { address, isConnected, btc, refetch } = usePosition();
+  const { address, isConnected, btc, musd, refetch } = usePosition();
   const { chainId, connector } = useAccount();
   const config = useConfig();
   const publicClient = usePublicClient({ chainId: MEZO_TESTNET.chainId });
   const { switchChainAsync } = useSwitchChain();
   const [text, setText] = useState("");
+  // false: BTC to MUSD. true: MUSD to BTC. Same router and pool, reversed route.
+  const [back, setBack] = useState(false);
   const [phase, setPhase] = useState<"idle" | "wallet" | "chain" | "done">("idle");
   const [error, setError] = useState("");
   const [tx, setTx] = useState("");
 
   const amount = parseAmount(text);
-  const route = btcToMusdRoute();
+  const route = back ? musdToBtcRoute() : btcToMusdRoute();
+  const payToken = back ? CONTRACTS.MUSD : CONTRACTS.BTC;
   const quote = useReadContract({
     address: CONTRACTS.SwapRouter,
     abi: routerAbi,
@@ -39,7 +43,7 @@ export default function SwapPage() {
     query: { enabled: Boolean(amount && amount > 0n) },
   });
   const allowance = useReadContract({
-    address: CONTRACTS.BTC,
+    address: payToken,
     abi: erc20Abi,
     functionName: "allowance",
     args: address ? [address, CONTRACTS.SwapRouter] : undefined,
@@ -48,17 +52,27 @@ export default function SwapPage() {
   });
 
   const out = quote.data?.[1];
+  // Rate is always per 1 unit of what you pay.
   const perBtc = amount && amount > 0n && out != null ? (out * WAD) / amount : null;
-  const naira = !fx.loading && out != null ? formatNaira(musdToNaira(out, fx.ngnPerUsd)) : null;
+  const fmtOut = (v: bigint, dp?: number) => (back ? formatBtc(v) : formatMusd(v, dp));
+  const fmtIn = (v: bigint) => (back ? formatMusd(v) : formatBtc(v));
+  const payUnit = back ? "MUSD" : "BTC";
+  const getUnit = back ? "BTC" : "MUSD";
+  const rateText = perBtc != null ? (back ? t("swap.rateBack", { amount: formatBtc(perBtc) }) : t("swap.rate", { amount: formatMusd(perBtc, 0) })) : null;
+  const musdSide = back ? amount : out;
+  const naira = !fx.loading && musdSide != null && musdSide > 0n ? formatNaira(musdToNaira(musdSide, fx.ngnPerUsd)) : null;
   const needsApproval = amount != null && amount > 0n && (allowance.data ?? 0n) < amount;
   const busy = phase === "wallet" || phase === "chain";
 
   let block = "";
-  if (amount == null) block = t("swap.need");
-  else if (amount <= 0n) block = t("swap.need");
+  const need = back ? t("swap.needMusd") : t("swap.need");
+  if (amount == null) block = need;
+  else if (amount <= 0n) block = need;
   else if (quote.isError) block = t("swap.noQuote");
   else if (quote.isLoading || out == null) block = t("swap.quoting");
-  else if (btc != null && amount > btc) block = t("swap.funds");
+  else if (!back && btc != null && amount > btc) block = t("swap.funds");
+  else if (back && musd != null && amount > musd) block = t("swap.fundsMusd");
+  else if (back && btc != null && btc < BTC_FEE_RESERVE) block = t("swap.feeBtc");
 
   async function submit() {
     if (!publicClient || !amount || amount <= 0n || out == null || block) return;
@@ -70,7 +84,7 @@ export default function SwapPage() {
       if (chainId !== MEZO_TESTNET.chainId) await switchChainAsync({ chainId: MEZO_TESTNET.chainId });
       if (needsApproval) {
         const approveHash = await sendContractWrite(config, connector, address, {
-          address: CONTRACTS.BTC,
+          address: payToken,
           abi: erc20Abi,
           functionName: "approve",
           args: [CONTRACTS.SwapRouter, amount],
@@ -97,7 +111,7 @@ export default function SwapPage() {
       refetch();
     } catch (err) {
       console.error(err);
-      setError(err instanceof WalletNotConnectedError ? t("wallet.connectFirst") : txMessage(err, t("common.closed")));
+      setError(err instanceof WalletNotConnectedError ? t("wallet.connectFirst") : txMessage(err, t("common.closed"), t));
       setPhase("idle");
     }
   }
@@ -106,17 +120,17 @@ export default function SwapPage() {
     <main className="screen form-page">
       <div className="form-main">
       <div className="swap-art">
-        <h1>{t("swap.title")}</h1>
+        <h1>{back ? t("swap.titleBack") : t("swap.title")}</h1>
         <CoinsArt />
       </div>
 
       <section className="card">
         <div className="caption">{t("swap.from")}</div>
         <div className="token-row" style={{ marginTop: 8 }}>
-          <BtcMark size={40} />
-          <strong>BTC</strong>
+          {back ? <span className="bubble-lg" style={{ width: 40, height: 40 }}>M</span> : <BtcMark size={40} />}
+          <strong>{payUnit}</strong>
           <input
-            className="bare token-amt orange"
+            className={`bare token-amt ${back ? "green" : "orange"}`}
             style={{ fontSize: 22, width: 140 }}
             inputMode="decimal"
             aria-label={t("swap.from")}
@@ -125,21 +139,38 @@ export default function SwapPage() {
             onChange={(event) => setText(event.target.value)}
           />
         </div>
-        {btc != null ? <p className="caption" style={{ marginTop: 8 }}>{t("borrow.wallet")} {formatBtc(btc)} BTC</p> : null}
+        {back
+          ? musd != null ? <p className="caption" style={{ marginTop: 8 }}>{t("borrow.wallet")} {formatMusd(musd)} MUSD</p> : null
+          : btc != null ? <p className="caption" style={{ marginTop: 8 }}>{t("borrow.wallet")} {formatBtc(btc)} BTC</p> : null}
       </section>
-      <div className="swap-switch" aria-hidden="true">↕</div>
+      <button
+        type="button"
+        className="swap-switch"
+        aria-label={t("swap.flip")}
+        title={t("swap.flip")}
+        disabled={busy}
+        onClick={() => {
+          setBack((v) => !v);
+          setText("");
+          setError("");
+          setPhase("idle");
+          setTx("");
+        }}
+      >
+        ↕
+      </button>
       <section className="card">
         <div className="caption">{t("swap.to")}</div>
         <div className="token-row" style={{ marginTop: 8 }}>
-          <span className="bubble-lg" style={{ width: 40, height: 40 }}>M</span>
-          <strong>MUSD</strong>
-          <div className="token-amt green">
-            {out != null ? formatMusd(out, 2) : "—"}
-            <div className="caption">{naira ? `(~ ${naira})` : ""}</div>
+          {back ? <BtcMark size={40} /> : <span className="bubble-lg" style={{ width: 40, height: 40 }}>M</span>}
+          <strong>{getUnit}</strong>
+          <div className={`token-amt ${back ? "orange" : "green"}`}>
+            {out != null ? fmtOut(out, 2) : "—"}
+            <div className="caption">{naira && !back ? `(~ ${naira})` : ""}</div>
           </div>
         </div>
         <div className="quote-box">
-          <div>{perBtc != null ? t("swap.rate", { amount: formatMusd(perBtc, 0) }) : t("swap.quoting")}</div>
+          <div>{rateText ?? t("swap.quoting")}</div>
           <RateLine />
         </div>
       </section>
@@ -154,7 +185,7 @@ export default function SwapPage() {
       {isConnected ? (
         <button className="btn" type="button" disabled={Boolean(block) || busy || amount == null} onClick={submit}>
           <span />
-          <span>{busy ? t("swap.pending") : needsApproval ? t("swap.approve") : t("swap.action")}</span>
+          <span>{busy ? t("swap.pending") : needsApproval ? (back ? t("swap.approveMusd") : t("swap.approve")) : back ? t("swap.actionBack") : t("swap.action")}</span>
           <span />
         </button>
       ) : (
@@ -164,9 +195,9 @@ export default function SwapPage() {
       <SideSummary
         title={t("layout.summary")}
         rows={[
-          { label: t("swap.from"), value: amount && amount > 0n ? `${formatBtc(amount)} BTC` : "—" },
-          { label: t("swap.to"), value: out != null ? `${formatMusd(out)} MUSD${naira ? ` · ${naira}` : ""}` : "—" },
-          { label: t("swap.rateLabel"), value: perBtc != null ? `${t("swap.rate", { amount: formatMusd(perBtc, 0) })}` : "—" },
+          { label: t("swap.from"), value: amount && amount > 0n ? `${fmtIn(amount)} ${payUnit}${back && naira ? ` · ${naira}` : ""}` : "—" },
+          { label: t("swap.to"), value: out != null ? `${fmtOut(out)} ${getUnit}${!back && naira ? ` · ${naira}` : ""}` : "—" },
+          { label: t("swap.rateLabel"), value: rateText ?? "—" },
         ]}
       />
     </main>

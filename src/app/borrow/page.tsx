@@ -29,7 +29,7 @@ import {
 } from "@/lib/format";
 import { loanHealth } from "@/lib/health";
 import { findTroveHints } from "@/lib/hints";
-import { borrowingFee, liquidationPrice, maxDraw, previewDebt, previewRatioPct } from "@/lib/loan";
+import { BTC_FEE_RESERVE, borrowingFee, liquidationPrice, maxDraw, previewDebt, previewRatioPct } from "@/lib/loan";
 import { GuidedLoan } from "./guided";
 
 export default function BorrowPage() {
@@ -69,6 +69,9 @@ function AdjustLoan() {
   const rate = protocol.borrowRate ?? 0n;
   const minDebt = protocol.minDebt ?? 1800n * WAD;
   const amount = wholeToWad(musdWhole);
+  // Keep a little BTC in the wallet for the network fee. Sending the whole
+  // balance as collateral makes the wallet reject the request before it opens.
+  const feeReserve = BTC_FEE_RESERVE;
 
   const drawCap = useMemo(() => {
     if (collWei == null || collWei <= 0n) return 0n;
@@ -84,7 +87,9 @@ function AdjustLoan() {
   }, [collWei, price, mcr, currentDebt, gas, rate, opening]);
 
   const minWhole = opening ? Math.max(1, wadToWhole(minDebt)) : 0;
-  const maxWhole = Math.max(minWhole, wadToWhole(drawCap));
+  const capWhole = wadToWhole(drawCap);
+  const maxWhole = Math.max(minWhole, capWhole);
+  const added = collWei == null ? 0n : opening ? collWei : collWei - currentColl;
   const fee = borrowingFee(amount, rate);
   const totalDebt = previewDebt({
     amount,
@@ -107,6 +112,8 @@ function AdjustLoan() {
   else if (collWei == null) block = t("borrow.needBtc");
   else if (withdrawing) block = t("borrow.withdrawTodo");
   else if (collWei <= 0n) block = t("borrow.needBtc");
+  else if (opening && capWhole < minWhole) block = t("borrow.addForMin", { amount: formatMusd(minDebt, 0) });
+  else if (btc != null && added > 0n && added + feeReserve > btc) block = t("borrow.feeRoom");
   else if (opening && amount < minDebt) block = t("borrow.belowMin", { amount: formatMusd(minDebt, 0) });
   else if (amount > drawCap) block = t("borrow.aboveMax");
   else if (!opening && amount === 0n && collWei === currentColl) block = t("borrow.needBtc");
@@ -120,7 +127,6 @@ function AdjustLoan() {
       await ensureBitcoinAccount(connector);
       if (chainId !== MEZO_TESTNET.chainId) await switchChainAsync({ chainId: MEZO_TESTNET.chainId });
       const hints = await findTroveHints(publicClient, collWei, totalDebt);
-      const added = opening ? collWei : collWei - currentColl;
       const hash = opening
         ? await sendContractWrite(config, connector, address, {
             address: CONTRACTS.BorrowerOperations,
@@ -143,13 +149,13 @@ function AdjustLoan() {
       setPhase("done");
       refetch();
     } catch (err) {
-      setError(err instanceof WalletNotConnectedError ? t("wallet.connectFirst") : txMessage(err, t("common.closed")));
+      setError(err instanceof WalletNotConnectedError ? t("wallet.connectFirst") : txMessage(err, t("common.closed"), t));
       setPhase("idle");
     }
   }
 
   function addBtc() {
-    const wallet = btc ?? 0n;
+    const wallet = btc != null && btc > BTC_FEE_RESERVE ? btc - BTC_FEE_RESERVE : 0n;
     const next = opening ? wallet : currentColl + wallet;
     if (next <= 0n) {
       setTouchedColl(true);
@@ -202,10 +208,10 @@ function AdjustLoan() {
           className="bare"
           inputMode="numeric"
           aria-label={t("borrow.amount")}
-          value={String(musdWhole)}
+          value={String(Math.min(maxWhole, Math.max(minWhole, musdWhole)))}
           onChange={(event) => {
             const next = Number(event.target.value.replace(/[^\d]/g, ""));
-            if (Number.isFinite(next)) setMusdWhole(next);
+            if (Number.isFinite(next)) setMusdWhole(Math.min(maxWhole, Math.max(minWhole, next)));
           }}
         />
         <div className="naira" style={{ color: "var(--kola-green)" }}>{musdNaira ? `(= ${musdNaira})` : ""} <span className="caption">MUSD</span></div>
