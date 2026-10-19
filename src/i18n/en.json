@@ -12,7 +12,7 @@
   "landing.heroAccent": "Your keys, your money",
   "landing.connect": "Connect with Mezo Passport",
   "landing.open": "Open your wallet",
-  "landing.rate": "1 MUSD ~ {naira}  •  {rate}",
+  "landing.rate": "1 MUSD ~ {naira}",
   "rate.nairaUpdated": "naira rate updated {time} WAT",
   "rate.backup": "backup rate",
   "common.copy": "Copy",
