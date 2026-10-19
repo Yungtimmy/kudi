@@ -99,7 +99,7 @@
   "borrow.needBtc": "Add Bitcoin before this loan fit open.",
   "borrow.belowMin": "The smallest loan na {amount} MUSD.",
   "borrow.aboveMax": "That amount need more Bitcoin collateral.",
-  "borrow.withdrawTodo": "TODO: to comot collateral no dey this round. You fit add Bitcoin, or leave the one wey don lock.",
+  "borrow.withdrawTodo": "Withdraw collateral dey come next. You fit add Bitcoin, or leave the one wey don lock.",
   "borrow.pending": "We dey wait for your wallet…",
   "borrow.sent": "Borrow don send. We dey wait for Mezo…",
   "borrow.done": "Borrow don confirm.",
