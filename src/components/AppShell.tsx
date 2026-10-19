@@ -3,6 +3,7 @@ import { Suspense, type ReactNode } from "react";
 import { Providers } from "./Providers";
 import { Header } from "./Header";
 import { PwaRegister } from "./PwaRegister";
+import { InstallCard } from "./InstallCard";
 import { Sidebar, TopNav } from "./SideNav";
 export function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -16,6 +17,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Header />
           <TopNav />
           {children}
+          <InstallCard />
         </div>
       </div>
     </Providers>

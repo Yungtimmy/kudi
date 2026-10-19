@@ -166,5 +166,8 @@
   "install.ios": "For iPhone, tap Share, then Add to Home Screen.",
   "install.done": "Kudi don dey this phone.",
   "recovery.banner": "Recovery mode don on. System collateral ratio na {pct}, e low pass 150%, so new loan get tighter rule.",
-  "account.connect": "Connect"
+  "account.connect": "Connect",
+  "install.card": "Put Kudi for your home screen",
+  "install.cardIos": "Tap Share, then Add to Home Screen",
+  "install.dismiss": "Comot am"
 }

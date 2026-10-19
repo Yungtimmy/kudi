@@ -1,4 +1,5 @@
-/* Network-only worker. Registration is what makes Kudi installable. */
+/* Network-only worker. Registration is what makes Kudi installable.
+   Nothing is cached: wallet, RPC and API calls always go to the network. */
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
 });
@@ -8,5 +9,5 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", () => {
-  /* Let the browser handle the request. */
+  /* No respondWith: the browser handles every request itself. */
 });

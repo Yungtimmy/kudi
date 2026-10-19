@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: "Kudi",
   description: "Bitcoin-backed MUSD for everyday payments on Mezo testnet",
   manifest: "/manifest.webmanifest",
-  icons: { icon: "/icon-192.png", apple: "/icon-192.png" },
+  icons: { icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/icon-192.png", sizes: "192x192" }], apple: "/icon-192.png" },
 };
 export const viewport: Viewport = { themeColor: "#0E7C4A", width: "device-width", initialScale: 1 };
 export default function RootLayout({ children }: { children: React.ReactNode }) {
