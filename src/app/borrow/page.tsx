@@ -56,7 +56,10 @@ function AdjustLoan() {
 
   const [collText, setCollText] = useState("");
   const [touchedColl, setTouchedColl] = useState(false);
-  const [musdWhole, setMusdWhole] = useState(1800);
+  // A top-up starts at 0 extra MUSD. Starting at 1,800 (the new-loan minimum)
+  // stacked 1,800 on the existing debt, so the screen read ~105% Danger with
+  // Confirm disabled and looked like the new-loan form.
+  const [musdWhole, setMusdWhole] = useState<number | null>(null);
   const [phase, setPhase] = useState<"idle" | "wallet" | "chain" | "done">("idle");
   const [error, setError] = useState("");
   const [tx, setTx] = useState("");
@@ -71,7 +74,6 @@ function AdjustLoan() {
   const gas = protocol.gas ?? 200n * WAD;
   const rate = protocol.borrowRate ?? 0n;
   const minDebt = protocol.minDebt ?? 1800n * WAD;
-  const amount = wholeToWad(musdWhole);
   // Keep a little BTC in the wallet for the network fee. Sending the whole
   // balance as collateral makes the wallet reject the request before it opens.
   const feeReserve = BTC_FEE_RESERVE;
@@ -92,6 +94,10 @@ function AdjustLoan() {
   const minWhole = opening ? Math.max(1, wadToWhole(minDebt)) : 0;
   const capWhole = wadToWhole(drawCap);
   const maxWhole = Math.max(minWhole, capWhole);
+  // The amount used for checks and the transaction is the same clamped value
+  // the input and slider show.
+  const drawWhole = Math.min(maxWhole, Math.max(minWhole, musdWhole ?? (opening ? 1800 : 0)));
+  const amount = wholeToWad(drawWhole);
   const added = collWei == null ? 0n : opening ? collWei : collWei - currentColl;
   const fee = borrowingFee(amount, rate);
   const totalDebt = previewDebt({
@@ -108,7 +114,7 @@ function AdjustLoan() {
     ? formatNaira(musdToNaira((collWei * price) / WAD, fx.ngnPerUsd))
     : null;
   const musdNaira = !fx.loading ? formatNaira(musdToNaira(amount, fx.ngnPerUsd)) : null;
-  const fill = maxWhole === minWhole ? 0 : ((musdWhole - minWhole) / (maxWhole - minWhole)) * 100;
+  const fill = maxWhole === minWhole ? 0 : ((drawWhole - minWhole) / (maxWhole - minWhole)) * 100;
 
   let block = "";
   if (!price || !mcr) block = t("common.loading");
@@ -175,8 +181,13 @@ function AdjustLoan() {
   return (
     <main className="screen form-page">
       <div className="form-main">
-      <h1>{t("borrow.title")}</h1>
+      <h1>{opening ? t("borrow.title") : t("borrow.topUpTitle")}</h1>
       <RecoveryBanner />
+      {!opening && debt != null ? (
+        <p className="note" style={{ marginBottom: 12 }}>
+          {t("borrow.topUpCurrent", { debt: formatMusd(debt, 0), coll: formatBtc(currentColl) })}
+        </p>
+      ) : null}
       <section className="card">
         <div className="deposit-head">
           <div className="btc-row">
@@ -211,7 +222,7 @@ function AdjustLoan() {
           className="bare"
           inputMode="numeric"
           aria-label={t("borrow.amount")}
-          value={String(Math.min(maxWhole, Math.max(minWhole, musdWhole)))}
+          value={String(drawWhole)}
           onChange={(event) => {
             const next = Number(event.target.value.replace(/[^\d]/g, ""));
             if (Number.isFinite(next)) setMusdWhole(Math.min(maxWhole, Math.max(minWhole, next)));
@@ -224,7 +235,7 @@ function AdjustLoan() {
           min={minWhole}
           max={maxWhole}
           step={1}
-          value={Math.min(maxWhole, Math.max(minWhole, musdWhole))}
+          value={drawWhole}
           aria-label={t("borrow.amount")}
           style={{ background: `linear-gradient(90deg, var(--kola-green) ${fill}%, #e4ddd0 ${fill}%)` }}
           onChange={(event) => setMusdWhole(Number(event.target.value))}
@@ -299,7 +310,7 @@ function AdjustLoan() {
         title={t("layout.summary")}
         rows={[
           { label: t("borrow.deposit"), value: shownColl ? `${shownColl} BTC` : "—" },
-          { label: t("borrow.amount"), value: `${musdWhole.toLocaleString("en-US")} MUSD${musdNaira ? ` · ${musdNaira}` : ""}` },
+          { label: t("borrow.amount"), value: `${drawWhole.toLocaleString("en-US")} MUSD${musdNaira ? ` · ${musdNaira}` : ""}` },
           { label: t("borrow.fixedLabel"), value: `${protocol.interestPct ?? 1}%` },
           { label: t("home.ratio"), value: ratio == null ? "—" : `${Math.round(ratio)}% · ${healthLabel}` },
           { label: t("home.liq"), value: liq ? formatUsd(liq) : "—" },
