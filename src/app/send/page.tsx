@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PassportConnect } from "@/components/PassportConnect";
-import { isAddress } from "viem";
-import { useAccount, usePublicClient, useSwitchChain, useWriteContract } from "wagmi";
+import { getAddress, isAddress } from "viem";
+import { useAccount, useConfig, usePublicClient, useSwitchChain } from "wagmi";
+import { ensureBitcoinAccount, WalletNotConnectedError } from "@/lib/bitcoinWallet";
+import { sendContractWrite } from "@/lib/walletWrite";
 import { ArrowIcon, ShieldIcon } from "@/components/Illustrations";
 import { SideSummary } from "@/components/SideSummary";
 import { RateLine } from "@/components/RateLine";
@@ -21,9 +23,9 @@ export default function SendPage() {
   const fx = useFx();
   const router = useRouter();
   const { address, isConnected, musd } = usePosition();
-  const { chainId } = useAccount();
+  const { chainId, connector } = useAccount();
+  const config = useConfig();
   const publicClient = usePublicClient({ chainId: MEZO_TESTNET.chainId });
-  const { writeContractAsync } = useWriteContract();
   const { switchChainAsync } = useSwitchChain();
   const [to, setTo] = useState("");
   const [amountText, setAmountText] = useState("");
@@ -46,13 +48,16 @@ export default function SendPage() {
     setError("");
     setPhase("wallet");
     try {
+      // Same path as Swap and Borrow: Passport/OrangeKit signs through the
+      // Bitcoin account. wagmi's writeContract sends a raw eth_sendTransaction
+      // that the Passport BTC wallets reject with -32602.
+      await ensureBitcoinAccount(connector);
       if (chainId !== MEZO_TESTNET.chainId) await switchChainAsync({ chainId: MEZO_TESTNET.chainId });
-      const hash = await writeContractAsync({
+      const hash = await sendContractWrite(config, connector, address, {
         address: CONTRACTS.MUSD,
         abi: erc20Abi,
         functionName: "transfer",
-        args: [to as `0x${string}`, amount],
-        chainId: MEZO_TESTNET.chainId,
+        args: [getAddress(to), amount],
       });
       setPhase("chain");
       saveReceipt(hash, { amount: amountText.trim(), to, note });
@@ -60,7 +65,7 @@ export default function SendPage() {
       if (receipt.status !== "success") throw new Error(t("receipt.failed"));
       router.push(`/receipt/${hash}`);
     } catch (err) {
-      setError(txMessage(err, t("common.closed")));
+      setError(err instanceof WalletNotConnectedError ? t("wallet.connectFirst") : txMessage(err, t("common.closed"), t));
       setPhase("idle");
     }
   }

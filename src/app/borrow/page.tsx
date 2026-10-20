@@ -35,11 +35,14 @@ import { GuidedLoan } from "./guided";
 export default function BorrowPage() {
   const { t } = useI18n();
   const pos = usePosition();
-  if (pos.isConnected && pos.loading && pos.coll == null) {
+  // Wait until we know whether this wallet already has a loan. Rendering the
+  // new-loan screen while the trove read is still pending (Passport reconnects
+  // slowly) left users with an open loan stuck on "open a new loan".
+  if (pos.address && pos.loanState === "unknown" && !pos.readsSettled) {
     return <main className="screen form-page"><p className="note">{t("common.loading")}</p></main>;
   }
-  if (pos.coll == null) return <GuidedLoan />;
-  return <AdjustLoan />;
+  if (pos.loanState === "active") return <AdjustLoan />;
+  return <GuidedLoan />;
 }
 
 function AdjustLoan() {
