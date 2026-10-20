@@ -183,5 +183,7 @@
   "swap.rateBack": "Rate: 1 MUSD = {amount} BTC",
   "swap.needMusd": "Enter how much MUSD to swap.",
   "swap.fundsMusd": "Your MUSD balance does not cover this swap.",
-  "swap.feeBtc": "Keep a little BTC for the network fee."
+  "swap.feeBtc": "Keep a little BTC for the network fee.",
+  "borrow.topUpTitle": "Add to your loan",
+  "borrow.topUpCurrent": "You already have a loan: {debt} MUSD owed against {coll} BTC. Add BTC or borrow more below."
 }

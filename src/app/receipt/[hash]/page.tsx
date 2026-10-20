@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import type { Hex } from "viem";
+import type { Hex, TransactionReceipt } from "viem";
 import { usePublicClient } from "wagmi";
 import { BottomWave, CheckIcon, ClockIcon, CopyIcon, ExternalIcon, HashIcon, PeopleIcon, ShieldIcon } from "@/components/Illustrations";
 import { RateLine } from "@/components/RateLine";
@@ -13,6 +13,9 @@ import { CONTRACTS, MEZO_TESTNET, shortAddr, txUrl } from "@/lib/mezo";
 import { formatMusd, formatNaira, formatWhen, musdToNaira, parseAmount } from "@/lib/format";
 import { loadReceipt, type ReceiptMeta } from "@/lib/paylink";
 import { decodeEventLog } from "viem";
+
+const RECEIPT_TRIES = 20;
+const RECEIPT_WAIT_MS = 3000;
 
 type View = {
   status: "pending" | "success" | "failed" | "missing";
@@ -44,32 +47,47 @@ export default function ReceiptPage() {
     if (!client) return;
     let gone = false;
     (async () => {
-      try {
-        const receipt = await client.getTransactionReceipt({ hash: hash as Hex });
-        const block = await client.getBlock({ blockNumber: receipt.blockNumber });
-        let amount: bigint | undefined;
-        let to: string | undefined;
-        for (const log of receipt.logs) {
-          if (log.address.toLowerCase() !== CONTRACTS.MUSD.toLowerCase()) continue;
-          try {
-            const decoded = decodeEventLog({ abi: erc20Abi, data: log.data, topics: log.topics });
-            if (decoded.eventName !== "Transfer") continue;
-            amount = decoded.args.value;
-            to = decoded.args.to;
-          } catch {
-            /* not a transfer */
-          }
+      // A receipt opened straight after Send can beat the node's index, and the
+      // transport does not retry. Treat "not found" as pending and poll before
+      // calling the hash missing.
+      let receipt: TransactionReceipt | null = null;
+      for (let attempt = 0; attempt < RECEIPT_TRIES && !gone; attempt++) {
+        try {
+          receipt = await client.getTransactionReceipt({ hash: hash as Hex });
+          break;
+        } catch {
+          await new Promise((done) => setTimeout(done, RECEIPT_WAIT_MS));
         }
-        if (!gone) {
-          setView({
-            status: receipt.status === "success" ? "success" : "failed",
-            amount,
-            to,
-            when: Number(block.timestamp),
-          });
+      }
+      if (gone) return;
+      if (!receipt) {
+        setView({ status: "missing" });
+        return;
+      }
+      let amount: bigint | undefined;
+      let to: string | undefined;
+      for (const log of receipt.logs) {
+        if (log.address.toLowerCase() !== CONTRACTS.MUSD.toLowerCase()) continue;
+        try {
+          const decoded = decodeEventLog({ abi: erc20Abi, data: log.data, topics: log.topics });
+          if (decoded.eventName !== "Transfer") continue;
+          amount = decoded.args.value;
+          to = decoded.args.to;
+        } catch {
+          /* not a transfer */
         }
-      } catch {
-        if (!gone) setView({ status: "missing" });
+      }
+      const status = receipt.status === "success" ? "success" : "failed";
+      setView({ status, amount, to });
+      // The time is a separate read; a slow block fetch should not hide the result.
+      for (let attempt = 0; attempt < 3 && !gone; attempt++) {
+        try {
+          const block = await client.getBlock({ blockNumber: receipt.blockNumber });
+          if (!gone) setView({ status, amount, to, when: Number(block.timestamp) });
+          return;
+        } catch {
+          await new Promise((done) => setTimeout(done, 1500));
+        }
       }
     })();
     return () => {
