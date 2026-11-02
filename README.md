@@ -1,6 +1,6 @@
 # kudi
 
-Mobile-first, non-custodial web app on **Mezo testnet** for MUSD (Mezo hackathon, Track 2: Access & Distribution). Users connect with **Mezo Passport** and sign in the browser. Naira amounts are display only.
+Mobile-first, non-custodial web app on **Mezo testnet** for MUSD (Mezo hackathon, **Track 2: Access & Distribution**). Users connect with **Mezo Passport** and sign in the browser. Naira amounts are display only. Borrow shows live loan risk from the Mezo contracts: oracle price, collateral ratio, max borrow, and redemption. Judge notes: [`docs/evidence.md`](docs/evidence.md).
 
 ## Run
 
@@ -15,7 +15,9 @@ npm run dev
 - Next.js 14 App Router + TypeScript (Mezo Passport needs React 18)
 - Wallet connect: `@mezo-org/passport` + RainbowKit + wagmi + viem, Mezo testnet (chain 31611)
 - Screens: `/` connect, `/home`, `/borrow`, `/swap`, `/send`, `/pay-link/new`, `/pay/request`, `/receipt/[hash]`, `/install`
-- Live reads: MUSD balance, BTC balance, `PriceFeed.fetchPrice`, trove collateral / debt / ICR, `TroveManager.getTCR` and `checkRecoveryMode`
+- Live reads: MUSD balance, BTC balance, `PriceFeed.fetchPrice` and `oracle`, trove collateral / debt / principal, `TroveManager.getCurrentICR` and `getTroveMaxBorrowingCapacity`, `BorrowerOperations.redemptionRate`, `TroveManager.getTCR` and `checkRecoveryMode`
+- Borrow risk card: live ICR, the MUSD still available under the 110% line (capped by the stored max borrow), the oracle price in USD and naira, and whether redemptions are open
+- `npm run prove:level3` reads those values from Mezo testnet. It broadcasts open → addColl → repay → swap only when `KUDI_PROOF_PRIVATE_KEY` and `KUDI_PROOF_SEND=1` are set. It never touches mainnet.
 - Naira: `GET /api/fx` reads CoinGecko's free public API (tether NGN/USD, no key), cached on the server for 60 seconds. If CoinGecko fails it falls back to open.er-api.com (daily), then to a fixed ₦1,600 per USD. Labelled `naira rate updated hh:mm WAT` with the feed's own update time
 - Loan health: Safe ≥ 150%, Warning 120–150%, Danger < 120%. Recovery banner when TCR is under 150%
 - Borrow and swap submit real testnet transactions (open/adjust trove, router swap). The UI shows a transaction only after the wallet returns a hash. Withdrawing collateral is marked TODO

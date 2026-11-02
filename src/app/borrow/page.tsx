@@ -7,6 +7,7 @@ import { HealthBar } from "@/components/HealthBar";
 import { SideSummary } from "@/components/SideSummary";
 import { ArrowIcon, BtcMark, PercentIcon, ShieldIcon } from "@/components/Illustrations";
 import { RateLine } from "@/components/RateLine";
+import { LoanRisk } from "@/components/LoanRisk";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { useFx } from "@/hooks/useFx";
 import { usePosition } from "@/hooks/useMezo";
@@ -29,7 +30,7 @@ import {
 } from "@/lib/format";
 import { loanHealth } from "@/lib/health";
 import { findTroveHints } from "@/lib/hints";
-import { BTC_FEE_RESERVE, borrowingFee, liquidationPrice, maxDraw, previewDebt, previewRatioPct } from "@/lib/loan";
+import { BTC_FEE_RESERVE, borrowLimits, borrowingFee, liquidationPrice, previewDebt, previewRatioPct, principalAfterBorrow } from "@/lib/loan";
 import { GuidedLoan } from "./guided";
 
 export default function BorrowPage() {
@@ -48,7 +49,7 @@ export default function BorrowPage() {
 function AdjustLoan() {
   const { t } = useI18n();
   const fx = useFx();
-  const { address, isConnected, btc, coll, debt, protocol, refetch } = usePosition();
+  const { address, isConnected, btc, coll, debt, principal, maxCap, liveIcrPct, protocol, refetch } = usePosition();
   const { chainId, connector } = useAccount();
   const config = useConfig();
   const publicClient = usePublicClient({ chainId: MEZO_TESTNET.chainId });
@@ -72,24 +73,29 @@ function AdjustLoan() {
   const price = protocol.price ?? 0n;
   const mcr = protocol.mcr ?? 0n;
   const gas = protocol.gas ?? 200n * WAD;
-  const rate = protocol.borrowRate ?? 0n;
+  // Recovery mode does not charge the borrowing fee. Hints have to use the same debt the contract will.
+  const rate = protocol.recovery ? 0n : (protocol.borrowRate ?? 0n);
   const minDebt = protocol.minDebt ?? 1800n * WAD;
   // Keep a little BTC in the wallet for the network fee. Sending the whole
   // balance as collateral makes the wallet reject the request before it opens.
   const feeReserve = BTC_FEE_RESERVE;
 
-  const drawCap = useMemo(() => {
-    if (collWei == null || collWei <= 0n) return 0n;
-    return maxDraw({
+  const limits = useMemo(() => {
+    if (collWei == null || collWei <= 0n || price <= 0n || mcr <= 0n) return null;
+    // Wait for the stored ceiling before offering more MUSD. The live ratio alone can sit above it.
+    if (!opening && maxCap == null) return null;
+    return borrowLimits({
       coll: collWei,
       price,
       mcr,
-      currentDebt: opening ? 0n : currentDebt,
+      debt: opening ? 0n : currentDebt,
       gas,
       rateWad: rate,
       opening,
+      storedCap: maxCap,
     });
-  }, [collWei, price, mcr, currentDebt, gas, rate, opening]);
+  }, [collWei, price, mcr, currentDebt, gas, rate, opening, maxCap]);
+  const drawCap = limits?.room ?? 0n;
 
   const minWhole = opening ? Math.max(1, wadToWhole(minDebt)) : 0;
   const capWhole = wadToWhole(drawCap);
@@ -124,6 +130,8 @@ function AdjustLoan() {
   else if (opening && capWhole < minWhole) block = t("borrow.addForMin", { amount: formatMusd(minDebt, 0) });
   else if (btc != null && added > 0n && added + feeReserve > btc) block = t("borrow.feeRoom");
   else if (opening && amount < minDebt) block = t("borrow.belowMin", { amount: formatMusd(minDebt, 0) });
+  else if (!opening && principal == null) block = t("common.loading");
+  else if (!opening && amount > 0n && maxCap == null) block = t("common.loading");
   else if (amount > drawCap) block = t("borrow.aboveMax");
   else if (!opening && amount === 0n && collWei === currentColl) block = t("borrow.needBtc");
 
@@ -135,7 +143,14 @@ function AdjustLoan() {
       if (!address) throw new WalletNotConnectedError();
       await ensureBitcoinAccount(connector);
       if (chainId !== MEZO_TESTNET.chainId) await switchChainAsync({ chainId: MEZO_TESTNET.chainId });
-      const hints = await findTroveHints(publicClient, collWei, totalDebt);
+      const hintDebt = opening
+        ? totalDebt
+        : amount > 0n
+          ? principalAfterBorrow(principal ?? currentDebt, amount, fee)
+          : (principal ?? currentDebt);
+      const hints = await findTroveHints(publicClient, collWei, hintDebt, address);
+      // Extra Bitcoin with no new MUSD is addColl. Borrowing more, with or without Bitcoin, is adjustTrove.
+      const collOnly = !opening && amount === 0n;
       const hash = opening
         ? await sendContractWrite(config, connector, address, {
             address: CONTRACTS.BorrowerOperations,
@@ -144,13 +159,21 @@ function AdjustLoan() {
             args: [amount, hints.upper, hints.lower],
             value: collWei,
           })
-        : await sendContractWrite(config, connector, address, {
-            address: CONTRACTS.BorrowerOperations,
-            abi: borrowerOpsAbi,
-            functionName: "adjustTrove",
-            args: [0n, amount, amount > 0n, hints.upper, hints.lower],
-            value: added,
-          });
+        : collOnly
+          ? await sendContractWrite(config, connector, address, {
+              address: CONTRACTS.BorrowerOperations,
+              abi: borrowerOpsAbi,
+              functionName: "addColl",
+              args: [hints.upper, hints.lower],
+              value: added,
+            })
+          : await sendContractWrite(config, connector, address, {
+              address: CONTRACTS.BorrowerOperations,
+              abi: borrowerOpsAbi,
+              functionName: "adjustTrove",
+              args: [0n, amount, true, hints.upper, hints.lower],
+              value: added > 0n ? added : 0n,
+            });
       setPhase("chain");
       setTx(hash);
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
@@ -265,6 +288,16 @@ function AdjustLoan() {
           </div>
         </div>
       </section>
+
+      <LoanRisk
+        liveIcrPct={liveIcrPct}
+        previewIcrPct={ratio}
+        maxBorrow={limits?.room ?? null}
+        maxIdle={!opening && maxCap == null ? "wait" : price > 0n ? "need" : "wait"}
+        capMusd={maxCap}
+        capBinds={limits?.capBinds}
+        user={address}
+      />
 
       <section className="card">
         <HealthBar ratio={ratio} />

@@ -33,11 +33,11 @@ for (const [key, file] of Object.entries(linked)) {
 }
 
 const needed = {
-  PriceFeed: ["fetchPrice"],
-  TroveManager: ["MCR", "CCR", "MUSD_GAS_COMPENSATION", "getTroveColl", "getTroveDebt", "getTroveStatus", "getCurrentICR", "getTCR", "checkRecoveryMode", "getTroveInterestRate"],
-  BorrowerOperations: ["minNetDebt", "borrowingRate", "getBorrowingFee", "openTrove", "adjustTrove", "addColl", "repayMUSD"],
+  PriceFeed: ["fetchPrice", "oracle"],
+  TroveManager: ["MCR", "CCR", "MUSD_GAS_COMPENSATION", "getTroveColl", "getTroveDebt", "getTroveStatus", "getCurrentICR", "getTrovePrincipal", "getTroveMaxBorrowingCapacity", "getTCR", "checkRecoveryMode", "getTroveInterestRate"],
+  BorrowerOperations: ["minNetDebt", "borrowingRate", "getBorrowingFee", "openTrove", "adjustTrove", "addColl", "repayMUSD", "redemptionRate"],
   HintHelpers: ["getApproxHint"],
-  SortedTroves: ["findInsertPosition"],
+  SortedTroves: ["findInsertPosition", "getSize", "getLast", "getPrev", "getNext"],
   InterestRateManager: ["interestRate"],
   MUSD: ["balanceOf", "allowance", "approve", "transfer"],
 };

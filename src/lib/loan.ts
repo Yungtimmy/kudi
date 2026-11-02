@@ -69,3 +69,66 @@ export function maxDraw(opts: {
   const room = maxDebt - committed;
   return (room * WAD) / (WAD + rateWad);
 }
+
+/**
+ * Ceiling BorrowerOperations stores at open: `coll * price / 110%`.
+ * The contract hardcodes 110% (110 * 1e16). It does not move when the oracle
+ * moves. Adding collateral does not raise it. Withdrawing collateral can lower it.
+ */
+export const CAPACITY_DENOM = 110n * 10n ** 16n;
+
+export function protocolMaxCapacity(coll: bigint, price: bigint): bigint {
+  if (coll <= 0n || price <= 0n) return 0n;
+  return (coll * price) / CAPACITY_DENOM;
+}
+
+/** MUSD still drawable so debt + new amount + fee stays within the stored ceiling. */
+export function remainingBorrow(opts: { cap: bigint; debt: bigint; rateWad: bigint }): bigint {
+  if (opts.cap <= opts.debt) return 0n;
+  return ((opts.cap - opts.debt) * WAD) / (WAD + opts.rateWad);
+}
+
+export function borrowLimits(opts: {
+  coll: bigint;
+  price: bigint;
+  mcr: bigint;
+  debt: bigint;
+  gas: bigint;
+  rateWad: bigint;
+  opening: boolean;
+  storedCap?: bigint;
+}): { icrRoom: bigint; capRoom: bigint | null; room: bigint; capBinds: boolean } {
+  const icrRoom = maxDraw({
+    coll: opts.coll,
+    price: opts.price,
+    mcr: opts.mcr,
+    currentDebt: opts.opening ? 0n : opts.debt,
+    gas: opts.gas,
+    rateWad: opts.rateWad,
+    opening: opts.opening,
+  });
+  if (opts.opening || opts.storedCap == null) {
+    return { icrRoom, capRoom: null, room: icrRoom, capBinds: false };
+  }
+  const capRoom = remainingBorrow({ cap: opts.storedCap, debt: opts.debt, rateWad: opts.rateWad });
+  const room = icrRoom < capRoom ? icrRoom : capRoom;
+  // A 1 MUSD gap is rounding. A wider gap means the stored ceiling, not the live ratio, is the limit.
+  return { icrRoom, capRoom, room, capBinds: capRoom + WAD < icrRoom };
+}
+
+/** Principal after a borrow. The fee is debt. Interest is not principal. */
+export function principalAfterBorrow(principal: bigint, amount: bigint, fee: bigint): bigint {
+  return principal + amount + fee;
+}
+
+/**
+ * Repayment clears accrued interest first, then principal.
+ * `debt` is principal plus interest, as `getTroveDebt` returns it.
+ */
+export function principalAfterRepay(principal: bigint, debt: bigint, repay: bigint): bigint {
+  if (repay <= 0n) return principal;
+  const interest = debt > principal ? debt - principal : 0n;
+  if (repay <= interest) return principal;
+  const fromPrincipal = repay - interest;
+  return fromPrincipal >= principal ? 0n : principal - fromPrincipal;
+}
