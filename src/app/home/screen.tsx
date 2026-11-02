@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ActivityCard } from "@/components/ActivityCard";
 import { LoanCare } from "@/components/LoanCare";
+import { LoanRisk } from "@/components/LoanRisk";
 import { RateLine } from "@/components/RateLine";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { BottomWave, BtcMark, LinkIcon, PlantArt, SendIcon, ShieldIcon, SwapIcon, WalletIcon } from "@/components/Illustrations";
@@ -13,7 +14,7 @@ import { useReconnectPending } from "@/hooks/useReconnectPending";
 import { useI18n } from "@/i18n/I18nProvider";
 import { loanHealth } from "@/lib/health";
 import { btcToNaira, formatBtc, formatMusd, formatNaira, formatUsd, musdToNaira, WAD } from "@/lib/format";
-import { liquidationPrice } from "@/lib/loan";
+import { borrowLimits, liquidationPrice } from "@/lib/loan";
 import { MEZO_TESTNET, parseViewAddress, viewAddr } from "@/lib/mezo";
 
 function Skel({ label, wide = false }: { label: string; wide?: boolean }) {
@@ -32,8 +33,21 @@ export function HomeScreen() {
   const reconnecting = useReconnectPending();
   const fx = useFx();
   const view = parseViewAddress(useSearchParams().get("address"));
-  const { address, isConnected, watching, musd, btc, coll, debt, ratioPct, protocol, loanState, readsSettled, loading, refetch } = usePosition(view.address);
-  const health = ratioPct == null ? null : loanHealth(ratioPct);
+  const { address, isConnected, watching, musd, btc, coll, debt, principal, maxCap, liveIcrPct, ratioPct, protocol, loanState, readsSettled, loading, refetch } = usePosition(view.address);
+  const shownRatio = liveIcrPct ?? ratioPct;
+  const health = shownRatio == null ? null : loanHealth(shownRatio);
+  const room = coll != null && debt != null && protocol.price != null && protocol.mcr != null && maxCap != null
+    ? borrowLimits({
+        coll,
+        price: protocol.price,
+        mcr: protocol.mcr,
+        debt,
+        gas: protocol.gas ?? 0n,
+        rateWad: protocol.recovery ? 0n : (protocol.borrowRate ?? 0n),
+        opening: false,
+        storedCap: maxCap,
+      })
+    : null;
   const liq = coll && debt && protocol.mcr ? liquidationPrice(debt, coll, protocol.mcr) : null;
   const musdNaira = !fx.loading && musd != null ? formatNaira(musdToNaira(musd, fx.ngnPerUsd)) : null;
   const btcNaira = !fx.loading && btc != null && protocol.price ? formatNaira(btcToNaira(btc, protocol.price, fx.ngnPerUsd)) : null;
@@ -113,12 +127,12 @@ export function HomeScreen() {
 
       <section className="card loan-card">
         <h3>{t("home.loan")}</h3>
-        {health && ratioPct != null ? (
+        {health && shownRatio != null ? (
           <>
             <div className="loan-grid">
               <div>
                 <div className="caption">{t("home.ratio")}</div>
-                <div className="pct">{Math.round(ratioPct)}%</div>
+                <div className="pct">{Math.round(shownRatio)}%</div>
               </div>
               <div>
                 <div className="caption">{t("home.liq")}</div>
@@ -133,10 +147,11 @@ export function HomeScreen() {
             {liq ? (
               <p className="loan-plain">{t("home.risk", { price: formatUsd(liq), naira: liqNaira ?? "₦—" })}</p>
             ) : null}
-            {health !== "safe" && isConnected && !watching && coll && debt && protocol.price ? (
+            {isConnected && !watching && coll && debt && principal != null && protocol.price ? (
               <LoanCare
                 coll={coll}
                 debt={debt}
+                principal={principal}
                 price={protocol.price}
                 gas={protocol.gas ?? 200n * WAD}
                 minDebt={protocol.minDebt ?? 1800n * WAD}
@@ -146,7 +161,7 @@ export function HomeScreen() {
               />
             ) : null}
           </>
-        ) : show && loanState === "active" && ratioPct == null ? (
+        ) : show && loanState === "active" && shownRatio == null ? (
           <div style={{ marginTop: 8 }} aria-busy={protocol.priceError ? undefined : true}>
             {protocol.priceError ? <strong>—</strong> : <Skel label={t("common.loading")} wide />}
           </div>
@@ -163,6 +178,17 @@ export function HomeScreen() {
           </div>
         )}
       </section>
+
+      {show ? (
+        <LoanRisk
+          liveIcrPct={liveIcrPct}
+          maxBorrow={room?.room ?? null}
+          maxIdle={protocol.price != null && loanState !== "active" ? "none" : "wait"}
+          capMusd={maxCap}
+          capBinds={room?.capBinds}
+          user={address}
+        />
+      ) : null}
 
       <section className="card price-card wide-only">
         <div className="label">{t("home.btcPrice")}</div>

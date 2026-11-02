@@ -6,6 +6,7 @@ import { useAccount, useConfig, usePublicClient, useReadContract, useSwitchChain
 import { SideSummary } from "@/components/SideSummary";
 import { ArrowIcon, BtcMark, ShieldIcon } from "@/components/Illustrations";
 import { RateLine } from "@/components/RateLine";
+import { LoanRisk } from "@/components/LoanRisk";
 import { RecoveryBanner } from "@/components/RecoveryBanner";
 import { useFx } from "@/hooks/useFx";
 import { usePosition } from "@/hooks/useMezo";
@@ -31,6 +32,7 @@ import {
   BTC_FEE_RESERVE,
   GUIDE_MAX_ICR_PCT,
   SAFE_ICR_PCT,
+  borrowLimits,
   borrowingFee,
   collateralForRatio,
   liquidationPrice,
@@ -70,7 +72,7 @@ export function GuidedLoan() {
   const price = protocol.price ?? 0n;
   const mcr = protocol.mcr ?? 0n;
   const gas = protocol.gas ?? 200n * WAD;
-  const rate = protocol.borrowRate ?? 0n;
+  const rate = protocol.recovery ? 0n : (protocol.borrowRate ?? 0n);
   const minDebt = protocol.minDebt ?? 1800n * WAD;
   const floor = Math.ceil(protocol.recovery && protocol.ccrPct ? protocol.ccrPct : protocol.mcrPct ?? 110);
   const pct = Math.min(GUIDE_MAX_ICR_PCT, Math.max(floor, targetPct));
@@ -85,13 +87,16 @@ export function GuidedLoan() {
     chainId: MEZO_TESTNET.chainId,
     query: { enabled: musdWad != null && musdWad >= minDebt },
   });
-  const fee = feeRead.data ?? (musdWad != null && rate > 0n ? borrowingFee(musdWad, rate) : 0n);
-  const feeReady = feeRead.data != null;
+  const fee = protocol.recovery ? 0n : (feeRead.data ?? (musdWad != null && rate > 0n ? borrowingFee(musdWad, rate) : 0n));
+  const feeReady = protocol.recovery || feeRead.data != null;
   const totalDebt = musdWad != null && musdWad > 0n
     ? previewDebt({ amount: musdWad, rateWad: rate, currentDebt: 0n, gas, opening: true })
     : 0n;
-  const debtForColl = musdWad != null && feeReady ? musdWad + feeRead.data! + gas : totalDebt;
+  const debtForColl = musdWad != null && musdWad > 0n && feeReady ? musdWad + fee + gas : totalDebt;
   const collWei = price > 0n && debtForColl > 0n ? collateralForRatio(debtForColl, price, pct) : null;
+  const limits = collWei != null && price > 0n && mcr > 0n
+    ? borrowLimits({ coll: collWei, price, mcr, debt: 0n, gas, rateWad: rate, opening: true })
+    : null;
   const ratio = pct;
   const health = loanHealth(ratio);
   const liq = collWei && mcr > 0n && debtForColl > 0n ? liquidationPrice(debtForColl, collWei, mcr) : null;
@@ -142,7 +147,7 @@ export function GuidedLoan() {
       if (!address) throw new WalletNotConnectedError();
       await ensureBitcoinAccount(connector);
       if (chainId !== MEZO_TESTNET.chainId) await switchChainAsync({ chainId: MEZO_TESTNET.chainId });
-      const hints = await findTroveHints(publicClient, collWei, debtForColl);
+      const hints = await findTroveHints(publicClient, collWei, debtForColl, address);
       const hash = await sendContractWrite(config, connector, address, {
         address: CONTRACTS.BorrowerOperations,
         abi: borrowerOpsAbi,
@@ -247,6 +252,14 @@ export function GuidedLoan() {
           </div>
         </section>
 
+        <LoanRisk
+          previewIcrPct={pct}
+          maxBorrow={limits?.room ?? null}
+          maxIdle={price > 0n ? "need" : "wait"}
+          maxTone="ceiling"
+          user={address}
+        />
+
         {ready ? (
           <section className="card">
             <h3>{t("guide.breakdown")}</h3>
@@ -258,7 +271,7 @@ export function GuidedLoan() {
               </li>
               <li>
                 <span className="caption">{t("guide.fee", { pct: feePct })}</span>
-                <strong>{formatMusd(feeRead.data!)} MUSD</strong>
+                <strong>{formatMusd(fee)} MUSD</strong>
               </li>
               <li>
                 <span className="caption">{t("guide.gas")}</span>

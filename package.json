@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint && node scripts/check-musd-abi.mjs"
+    "lint": "next lint && node scripts/check-musd-abi.mjs",
+    "prove:level3": "node scripts/prove-level3.mjs"
   },
   "dependencies": {
     "@mezo-org/musd-contracts": "^1.1.0",

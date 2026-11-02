@@ -7,6 +7,7 @@ import { parseAbi } from "viem";
  */
 export const priceFeedAbi = parseAbi([
   "function fetchPrice() view returns (uint256)",
+  "function oracle() view returns (address)",
 ]);
 
 export const troveManagerAbi = parseAbi([
@@ -17,6 +18,8 @@ export const troveManagerAbi = parseAbi([
   "function getTroveDebt(address _borrower) view returns (uint256)",
   "function getTroveStatus(address _borrower) view returns (uint8)",
   "function getCurrentICR(address _borrower, uint256 _price) view returns (uint256)",
+  "function getTrovePrincipal(address _borrower) view returns (uint256)",
+  "function getTroveMaxBorrowingCapacity(address _borrower) view returns (uint256)",
   "function getTCR(uint256 _price) view returns (uint256)",
   "function checkRecoveryMode(uint256 _price) view returns (bool)",
   "function getTroveInterestRate(address _borrower) view returns (uint16)",
@@ -30,6 +33,7 @@ export const borrowerOpsAbi = parseAbi([
   "function adjustTrove(uint256 _collWithdrawal, uint256 _debtChange, bool _isDebtIncrease, address _upperHint, address _lowerHint) payable",
   "function addColl(address _upperHint, address _lowerHint) payable",
   "function repayMUSD(uint256 _amount, address _upperHint, address _lowerHint)",
+  "function redemptionRate() view returns (uint256)",
 ]);
 
 export const hintHelpersAbi = parseAbi([
@@ -38,6 +42,10 @@ export const hintHelpersAbi = parseAbi([
 
 export const sortedTrovesAbi = parseAbi([
   "function findInsertPosition(uint256 _NICR, address _prevId, address _nextId) view returns (address, address)",
+  "function getSize() view returns (uint256)",
+  "function getLast() view returns (address)",
+  "function getPrev(address _id) view returns (address)",
+  "function getNext(address _id) view returns (address)",
 ]);
 
 export const interestRateAbi = parseAbi([

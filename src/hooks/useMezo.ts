@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Address } from "viem";
-import { useAccount, useReadContracts } from "wagmi";
-import { borrowerOpsAbi, erc20Abi, interestRateAbi, troveManagerAbi, priceFeedAbi } from "@/lib/abi";
+import { useAccount, usePublicClient, useReadContracts } from "wagmi";
+import { borrowerOpsAbi, erc20Abi, interestRateAbi, sortedTrovesAbi, troveManagerAbi, priceFeedAbi } from "@/lib/abi";
 import { ACTIVE_TROVE, previewRatioPct, wadToPct } from "@/lib/loan";
 import { CONTRACTS, MEZO_TESTNET } from "@/lib/mezo";
 import {
@@ -52,6 +52,8 @@ export function useProtocol() {
       { address: CONTRACTS.BorrowerOperations, abi: borrowerOpsAbi, functionName: "minNetDebt", chainId },
       { address: CONTRACTS.BorrowerOperations, abi: borrowerOpsAbi, functionName: "borrowingRate", chainId },
       { address: CONTRACTS.InterestRateManager, abi: interestRateAbi, functionName: "interestRate", chainId },
+      { address: CONTRACTS.BorrowerOperations, abi: borrowerOpsAbi, functionName: "redemptionRate", chainId },
+      { address: CONTRACTS.PriceFeed, abi: priceFeedAbi, functionName: "oracle", chainId },
     ],
     query: { ...fastRead, refetchInterval: 30_000 },
   });
@@ -114,6 +116,8 @@ export function useProtocol() {
     minDebt: read<bigint>(4),
     borrowRate: read<bigint>(5),
     interestPct: interestRaw == null ? undefined : Number(interestRaw) / 100,
+    redemptionRate: read<bigint>(7),
+    oracle: read<Address>(8),
     mcrPct: mcr == null ? undefined : wadToPct(mcr),
     ccrPct,
     tcrPct,
@@ -193,6 +197,32 @@ export function usePosition(watch?: Address) {
   const debt = liveKnown ? (active ? debtLive : undefined) : remembered?.active ? remembered.debt : undefined;
   const btc = btcLive ?? remembered?.btc;
   const musd = musdLive ?? remembered?.musd;
+  const risk = useReadContracts({
+    allowFailure: true,
+    contracts: address && price != null
+      ? [
+          { address: CONTRACTS.TroveManager, abi: troveManagerAbi, functionName: "getCurrentICR", args: [address, price], chainId },
+          { address: CONTRACTS.TroveManager, abi: troveManagerAbi, functionName: "getTroveMaxBorrowingCapacity", args: [address], chainId },
+          { address: CONTRACTS.TroveManager, abi: troveManagerAbi, functionName: "getTrovePrincipal", args: [address], chainId },
+        ]
+      : [],
+    query: { ...fastRead, enabled: Boolean(address && price != null), refetchInterval: 20_000 },
+  });
+  const riskCell = <T,>(index: number): T | undefined => {
+    const row = risk.data?.[index];
+    if (!row || row.status !== "success") return undefined;
+    return row.result as T;
+  };
+  const icrWad = riskCell<bigint>(0);
+  const capLive = riskCell<bigint>(1);
+  const principalLive = riskCell<bigint>(2);
+  // uint max means "no debt". A real ratio, even a very high one, stays well below this.
+  const liveIcrPct = active && price != null && icrWad != null && icrWad > 0n && icrWad < 10n ** 24n
+    ? wadToPct(icrWad)
+    : undefined;
+  const maxCap = active && capLive != null ? capLive : undefined;
+  const principal = active && principalLive != null && principalLive > 0n ? principalLive : undefined;
+
   const ratioPct = coll != null && debt != null && price != null ? previewRatioPct(coll, price, debt) ?? undefined : undefined;
 
   return {
@@ -204,13 +234,80 @@ export function usePosition(watch?: Address) {
     musd,
     coll,
     debt,
-    /** Collateral ratio from coll, debt, and price. Debt includes the gas reserve. */
+    /** Local ratio from coll, debt, and price. Prefer `liveIcrPct` when it is set. */
     ratioPct,
+    /** `TroveManager.getCurrentICR` at the oracle price. Includes pending rewards. */
+    liveIcrPct,
+    /** Stored `maxBorrowingCapacity`. Not the remaining room, and not recomputed from today's price. */
+    maxCap,
+    /** Principal only. Nominal CR and the sorted list use this, not principal plus interest. */
+    principal,
     loanState,
     readsSettled: !address || position.isFetched || position.isError,
     loading: Boolean(address) && loanState === "unknown" && btc == null && musd == null && !position.isError,
     refetch() {
       void position.refetch();
+      void risk.refetch();
     },
   };
+}
+
+const ZERO = "0x0000000000000000000000000000000000000000" as Address;
+
+/** Lowest trove still at or above MCR. Redemptions start there. Troves under MCR are skipped. */
+export function useRedemptionHead(price?: bigint, mcr?: bigint) {
+  const publicClient = usePublicClient({ chainId });
+  const [head, setHead] = useState<{ address: Address; icrPct: number } | null>(null);
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (!publicClient || price == null || price <= 0n || mcr == null || mcr <= 0n) {
+      setSettled(false);
+      return;
+    }
+    let cancel = false;
+    setSettled(false);
+    (async () => {
+      try {
+        let cursor = await publicClient.readContract({
+          address: CONTRACTS.SortedTroves,
+          abi: sortedTrovesAbi,
+          functionName: "getLast",
+        });
+        for (let step = 0; step < 12 && cursor && cursor !== ZERO; step += 1) {
+          const icr = await publicClient.readContract({
+            address: CONTRACTS.TroveManager,
+            abi: troveManagerAbi,
+            functionName: "getCurrentICR",
+            args: [cursor, price],
+          });
+          if (icr >= mcr) {
+            if (!cancel) {
+              setHead({ address: cursor, icrPct: wadToPct(icr) });
+              setSettled(true);
+            }
+            return;
+          }
+          cursor = await publicClient.readContract({
+            address: CONTRACTS.SortedTroves,
+            abi: sortedTrovesAbi,
+            functionName: "getPrev",
+            args: [cursor],
+          });
+        }
+        if (!cancel) {
+          setHead(null);
+          setSettled(true);
+        }
+      } catch {
+        if (!cancel) {
+          setHead(null);
+          setSettled(true);
+        }
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [publicClient, price, mcr]);
+  return { head, settled };
 }

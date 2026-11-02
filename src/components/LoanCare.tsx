@@ -6,7 +6,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { borrowerOpsAbi, erc20Abi } from "@/lib/abi";
 import { formatBtc, formatMusd, parseAmount, txMessage } from "@/lib/format";
 import { findTroveHints } from "@/lib/hints";
-import { SAFE_ICR_PCT, collateralForRatio, previewRatioPct } from "@/lib/loan";
+import { SAFE_ICR_PCT, collateralForRatio, previewRatioPct, principalAfterRepay } from "@/lib/loan";
 import { ensureBitcoinAccount, WalletNotConnectedError } from "@/lib/bitcoinWallet";
 import { sendContractWrite } from "@/lib/walletWrite";
 import { CONTRACTS, MEZO_TESTNET, txUrl } from "@/lib/mezo";
@@ -14,6 +14,8 @@ import { CONTRACTS, MEZO_TESTNET, txUrl } from "@/lib/mezo";
 type Props = {
   coll: bigint;
   debt: bigint;
+  /** Principal only. The sorted list uses this, not principal plus interest. */
+  principal: bigint;
   price: bigint;
   gas: bigint;
   minDebt: bigint;
@@ -100,7 +102,8 @@ export function LoanCare(props: Props) {
         setPhase("idle");
         return;
       }
-      const hints = await findTroveHints(publicClient, nextColl, nextDebt);
+      const hintDebt = mode === "repay" ? principalAfterRepay(props.principal, props.debt, amount) : props.principal;
+      const hints = await findTroveHints(publicClient, nextColl, hintDebt, address);
       const hash = mode === "add"
         ? await sendContractWrite(config, connector, address, {
             address: CONTRACTS.BorrowerOperations,
